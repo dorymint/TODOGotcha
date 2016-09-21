@@ -153,7 +153,7 @@ func TestDrisCrawl(t *testing.T) {
 	deepEqualStrings(t, expectedNames, outNames)
 }
 
-func BenchmarkUseWaitGroup(b *testing.B) {
+func BenchmarkDirsCrawl(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		dirsCrawl(*root)
 	}

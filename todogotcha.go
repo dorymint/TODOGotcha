@@ -171,6 +171,49 @@ func gather(filename string, target string) ([]string, error) {
 	}
 	return todoList, nil
 }
+// にゃん
+func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string][]string) {
+	// need use goroutine
+	todoMap = make(map[string][]string)
+	mux := new(sync.Mutex)
+	wg := new(sync.WaitGroup)
+
+	worker := func(filepath string) {
+		defer wg.Done()
+		// TODO:!!
+		// ファイルが多いとosのファイルディスクリプタ上限で叩かれるぅ...どうしよ...
+		// スレッドを増やしまくるgoだとよくハマるっぽい
+		// wgでカウント取って上限でwaitできれば良さそうだけど、カウンタは公開されてない
+		// muxと自前のカウンタで何とかするか...ちょっと考える
+		// 取り敢えず簡単にカウント取って一定値でwaitする?
+		// os環境個別のディスクリプタ上限を取得する関数とかあれば管理できそうだけど見つかってぬぃ...
+		todoList, err := gather(filepath, *gatherTarget)
+		if err != nil {
+			log.Println(err)
+		}
+		if todoList != nil {
+			mux.Lock()
+			todoMap[filepath] = todoList
+			mux.Unlock()
+		}
+	}
+
+	for dirname, infos := range infoMap {
+		for _, info := range infos {
+			if suffixSeacher(info.Name(), suffixList) {
+				wg.Add(1)
+				go worker(filepath.Join(dirname, info.Name()))
+			}
+		}
+	}
+	wg.Wait()
+	return todoMap
+}
+func useGophersProc() (todoMap map[string][]string) {
+	_, infomap := dirsCrawl(*root)
+	todoMap = unlimitedGophersWroks(infomap)
+	return todoMap
+}
 
 
 
@@ -212,9 +255,10 @@ func main() {
 	// test show
 	//crawlshow()
 
-	todoMap, err := mainproc()
-	if err != nil {
-		log.Fatal(err)
-	}
+//	todoMap, err := mainproc()
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+	todoMap := useGophersProc()
 	showTODOList(todoMap)
 }

@@ -1,3 +1,9 @@
-BenchmarkDirsCrawl-4   	      50	  32241163 ns/op	10615423 B/op	   31587 allocs/op
+=== RUN   TestDrisCrawl
+--- PASS: TestDrisCrawl (0.00s)
+=== RUN   TestSuffixSearcher
+--- PASS: TestSuffixSearcher (0.00s)
+=== RUN   TestGather
+--- PASS: TestGather (0.00s)
+BenchmarkDirsCrawl-4   	    5000	  33190956 ns/op	10641117 B/op	   31647 allocs/op
 PASS
-ok  	github.com/dory/go-todogotcha	1.655s
+ok  	github.com/dory/go-todogotcha	169.280s

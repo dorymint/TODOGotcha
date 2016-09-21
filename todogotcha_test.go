@@ -201,6 +201,7 @@ func writeContent(t *testing.T, content string) string {
 
 // TODO:Create test data tuple list
 func TestGather(t *testing.T) {
+	// input content
 	filename := writeContent(t, `// TODO:Test`)
 	defer func() {
 		if err := os.Remove(filename); err != nil {

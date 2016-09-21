@@ -21,9 +21,9 @@ import (
 // flags
 var (
 	root       = flag.String("root", "./", "Specify search root")
-	suffix     = flag.String("target", "go txt", `Specify target file type into the " "`)
+	suffix     = flag.String("filetype", "go txt", `Specify target file type into the " "`)
 	suffixList []string
-	gatherTarget = flag.String("TODO", "TODO", `Specify gather target word`)
+	gatherTarget = flag.String("key", "TODO", `Specify gather target keyword`)
 )
 
 func init() {
@@ -177,6 +177,7 @@ func gather(filename string, target string) ([]string, error) {
 // TODOGotcha!! main proc
 // TODO:use goroutine
 // TODO:驚くべき読みにくさ...何とかしたい
+// 多分データ構造の選択を間違えてる
 func mainproc() (todoMap map[string][]string, gatherErr error) {
 	todoMap = make(map[string][]string)
 	_, infomap := dirsCrawl(*root)
@@ -199,8 +200,6 @@ func mainproc() (todoMap map[string][]string, gatherErr error) {
 // show list!
 func showTODOList(todoMap map[string][]string) {
 	for filename, list := range todoMap {
-
-		// use linux, term color
 		fmt.Println(filename)
 		for _, s := range list {
 			fmt.Println(s)

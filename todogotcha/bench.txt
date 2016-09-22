@@ -1,0 +1,9 @@
+=== RUN   TestDrisCrawl
+--- PASS: TestDrisCrawl (0.00s)
+=== RUN   TestSuffixSearcher
+--- PASS: TestSuffixSearcher (0.00s)
+=== RUN   TestGather
+--- PASS: TestGather (0.00s)
+BenchmarkDirsCrawl-4   	   10000	  16876506 ns/op	 3505763 B/op	   10629 allocs/op
+PASS
+ok  	github.com/dory/go-todogotcha/todogotcha	170.648s

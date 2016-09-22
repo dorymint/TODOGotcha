@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 )
 
 // TODO:LIST
@@ -20,10 +19,10 @@ import (
 
 // flags
 var (
-	root       = flag.String("root", "./", "Specify search root")
-	suffix     = flag.String("filetype", "go txt", `Specify target file type into the " "`)
-	suffixList []string
-	gatherTarget = flag.String("key", "TODO", `Specify gather target keyword`)
+	root         = flag.String("root", "./", "Specify search root")
+	suffix       = flag.String("filetype", "go txt", `Specify target file type into the " "`)
+	suffixList   []string
+	gatherTarget = flag.String("key", "TODO:", "Specify gather target keyword")
 )
 
 func init() {
@@ -54,10 +53,8 @@ func argsCheck() {
 
 // Use wait group!!
 // もう少しシンプルにしたい
-func dirsCrawl(root string) ([]string, map[string][]os.FileInfo) {
-
+func dirsCrawl(root string) (map[string][]os.FileInfo) {
 	// mux group
-	var Dirlist []string
 	DirsCache := make(map[string]bool)
 	InfoCache := make(map[string][]os.FileInfo)
 	Mux := new(sync.Mutex)
@@ -80,11 +77,7 @@ func dirsCrawl(root string) ([]string, map[string][]os.FileInfo) {
 			log.Printf("crawl:%v\n", err)
 			return
 		}
-		defer func() {
-			if errclose := f.Close(); errclose != nil {
-				log.Println(errclose)
-			}
-		}()
+		defer f.Close()
 
 		info, err := f.Readdir(0)
 		if err != nil {
@@ -95,14 +88,15 @@ func dirsCrawl(root string) ([]string, map[string][]os.FileInfo) {
 		InfoCache[dirname] = info
 		Mux.Unlock()
 
+		// NOTE:countermove for too many open files
+		if err := f.Close(); err != nil {
+			log.Println(err)
+		}
+
 		for _, x := range info {
 			if x.IsDir() {
-				tmp := filepath.Join(dirname, x.Name())
-				Mux.Lock()
-				Dirlist = append(Dirlist, tmp)
-				Mux.Unlock()
 				Wg.Add(1)
-				go crawl(tmp)
+				go crawl(filepath.Join(dirname, x.Name()))
 			}
 		}
 	}
@@ -110,31 +104,8 @@ func dirsCrawl(root string) ([]string, map[string][]os.FileInfo) {
 	Wg.Add(1)
 	crawl(root)
 	Wg.Wait()
-	return Dirlist, InfoCache
-}
-
-// TODO:Do erase after test
-func crawlshow() {
-	dirslist, infomap := dirsCrawl(*root)
-	fmt.Println("show directory list")
-	for _, x := range dirslist {
-		fmt.Println(x)
-	}
-	fmt.Println("root = ", *root)
-	fmt.Println("length", len(dirslist))
-
-	fmt.Println("show target files")
-	var fileCount int
-	for dirname, infos := range infomap {
-		for _, info := range infos {
-			if suffixSeacher(info.Name(), suffixList) {
-				fmt.Println(filepath.Join(dirname, info.Name()))
-				fileCount++
-				time.Sleep(time.Millisecond)
-			}
-		}
-	}
-	fmt.Printf("all dirs = %v\nfile count = %v\n", len(dirslist), fileCount)
+	// DirsList は range InfoCache で取得できるので省いた方がいいかも
+	return InfoCache
 }
 
 // suffixList
@@ -148,9 +119,8 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 }
 
 // specify filename and target, Gather target(TODOs), return todoList.
-// TODO:use goroutine
 func gather(filename string, target string) ([]string, error) {
-	var todoList []string
+	todoList := []string{target}
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("todoGather:%v\n", err)
@@ -166,11 +136,16 @@ func gather(filename string, target string) ([]string, error) {
 			return nil, fmt.Errorf("todoGather:%v\n", err)
 		}
 		if index := strings.Index(sc.Text(), target); index != -1 {
-			todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index:]))
+			todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
 		}
+	}
+
+	if len(todoList) == 1 {
+		return nil, nil
 	}
 	return todoList, nil
 }
+
 // にゃん
 func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string][]string) {
 	// need use goroutine
@@ -187,6 +162,10 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 		// muxと自前のカウンタで何とかするか...ちょっと考える
 		// 取り敢えず簡単にカウント取って一定値でwaitする?
 		// os環境個別のディスクリプタ上限を取得する関数とかあれば管理できそうだけど見つかってぬぃ...
+		// これをクリアできないと大量のファイルを同時に走査するマルチスレッド使えない...
+		// 新しいルーチン呼ぶ前にファイルの内容をバッファに投げてクローズすれば良さそう?
+		// バッファがメモリ圧迫しそう...
+		// strings.Newreader(tmp)を渡そう...
 		todoList, err := gather(filepath, *gatherTarget)
 		if err != nil {
 			log.Println(err)
@@ -201,6 +180,7 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	for dirname, infos := range infoMap {
 		for _, info := range infos {
 			if suffixSeacher(info.Name(), suffixList) {
+				// TODO:file open and close to tmp string
 				wg.Add(1)
 				go worker(filepath.Join(dirname, info.Name()))
 			}
@@ -210,20 +190,19 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	return todoMap
 }
 func useGophersProc() (todoMap map[string][]string) {
-	_, infomap := dirsCrawl(*root)
+	infomap := dirsCrawl(*root)
 	todoMap = unlimitedGophersWroks(infomap)
 	return todoMap
 }
 
-
-
 // TODOGotcha!! main proc
-// TODO:use goroutine
-// TODO:驚くべき読みにくさ...何とかしたい
+// 驚くべき読みにくさ...何とかしたい
 // 多分データ構造の選択を間違えてる
+// TODO:erase after imprementertion to goroutine procs!!
+// do not used
 func mainproc() (todoMap map[string][]string, gatherErr error) {
 	todoMap = make(map[string][]string)
-	_, infomap := dirsCrawl(*root)
+	infomap := dirsCrawl(*root)
 	for dirname, infos := range infomap {
 		for _, info := range infos {
 			if suffixSeacher(info.Name(), suffixList) {
@@ -240,8 +219,9 @@ func mainproc() (todoMap map[string][]string, gatherErr error) {
 	}
 	return todoMap, gatherErr
 }
-// show list!
-func showTODOList(todoMap map[string][]string) {
+
+// output list!
+func outputTODOList(todoMap map[string][]string) {
 	for filename, list := range todoMap {
 		fmt.Println(filename)
 		for _, s := range list {
@@ -252,13 +232,12 @@ func showTODOList(todoMap map[string][]string) {
 	fmt.Printf("stack files=%v\n", len(todoMap))
 }
 func main() {
-	// test show
-	//crawlshow()
 
-//	todoMap, err := mainproc()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
+	//	todoMap, err := mainproc()
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
+
 	todoMap := useGophersProc()
-	showTODOList(todoMap)
+	outputTODOList(todoMap)
 }

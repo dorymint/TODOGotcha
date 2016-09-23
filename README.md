@@ -51,17 +51,17 @@ todogotcha
 
 ## Option
 ---
-** Show the flags and default parameter **
+**Show the flags and default parameter**
 ```
 todogotcha -h
 ```
 
-** Defaults **
+**Defaults**
  - target filetype ".go" or ".txt"
  - target keyword "TODO:"
  - search root "./"
 
-** This example is changed default option **
+__This example is changed default option__
 ```
 todogotcha -root "../" \
           -filetype "go c txt" \

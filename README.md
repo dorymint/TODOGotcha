@@ -17,23 +17,33 @@ go get github.com/dorymint/go-TODOGothca/todogotcha
 ```
 todogotcha
 ```
+Defaults
+ - target filetype ".go" or ".txt"
+ - target keyword "TODO:"
+ - search root "./"
+
+Search from current directory.  
+Create "TODO List" from search file.  
+Show the "TODO List".  
 
 ## Option
 ---
-Show
+Show the flags and default parameter
 ```
 todogotcha -h
 ```
 
-``` -root="<Specify search root directory>" ```
-``` -filetype="<Target file type list>" ```
-``` -keyword="<Gather target word>" ```
-
-Example
 ```
-todogotcha -root="../" \
-          -filetype="go" \
-          -keyword="TODO:"
+-root="<Specify search root directory>"
+-filetype="<Target file types list>"
+-keyword="<Gather target word>"
+```
+
+Use option example
+```
+todogotcha -root ../ \
+          -filetype "go c txt" \
+          -keyword "NOTE:"
 ```
 
 ## Licence

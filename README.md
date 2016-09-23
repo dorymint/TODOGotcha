@@ -61,7 +61,7 @@ todogotcha -h
  - target keyword "TODO:"
  - search root "./"
 
-__This example is changed default option__
+**This example is changed default option**
 ```
 todogotcha -root "../" \
           -filetype "go c txt" \

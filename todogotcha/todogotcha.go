@@ -20,9 +20,9 @@ import (
 // flags
 var (
 	root         = flag.String("root", "./", "Specify search root")
-	suffix       = flag.String("filetype", "go txt", `Specify target file type into the " "`)
+	suffix       = flag.String("filetypes", "go txt", `Specify target file type into the " "`)
 	suffixList   []string
-	gatherTarget = flag.String("key", "TODO:", "Specify gather target keyword")
+	gatherTarget = flag.String("keyword", "TODO:", "Specify gather target keyword")
 	result       = flag.String("result", "yes", "Specify result [yes:no]?")
 )
 
@@ -211,8 +211,8 @@ func outputTODOList(todoMap map[string][]string) {
 		fmt.Println("-----| RESULT |-----")
 		fmt.Printf("Find %v files\n", len(todoMap))
 		fmt.Printf("Search root=%q\n", *root)
-		fmt.Printf("Search wrod=%q\n", *gatherTarget)
-		fmt.Printf("Target filetypes%q\n", *suffix)
+		fmt.Printf("Search keywrod=%q\n", *gatherTarget)
+		fmt.Printf("Target filetypes=%q\n", *suffix)
 	}
 }
 func main() {

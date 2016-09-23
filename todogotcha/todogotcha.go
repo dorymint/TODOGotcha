@@ -157,7 +157,7 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	worker := func(filepath string) {
 		//defer wg.Done()
 
-		// TODO:!!
+		// TODO:Caution!!
 		// ファイルが多いとosのファイルディスクリプタ上限で叩かれるぅ...どうしよ...
 		// スレッドを増やしまくるgoだとよくハマるっぽい
 		// wgでカウント取って上限でwaitできれば良さそうだけど、カウンタは公開されてない

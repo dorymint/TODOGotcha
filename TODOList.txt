@@ -1,0 +1,25 @@
+/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha.go
+TODO:
+L14:LIST
+L25:", "Specify gather target keyword")
+L151:Use goroutine
+L160:Caution!!
+L185:file open and close to tmp string
+L222:Erase after test
+L233:erase after imprementertion to goroutine procs!!
+
+/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
+TODO:
+L48:for the moment
+L198:Create test data tuple list
+L201:Test`)
+L208:"
+
+-----| RESULT |-----
+find 2 files
+
+ALL FLAGS
+root="/home/dory/gowork/src/github.com/dory/go-todogotcha"
+filetype="go txt"
+keywrod="TODO:"
+result="on"

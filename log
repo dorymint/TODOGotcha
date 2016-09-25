@@ -1,0 +1,24 @@
+/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha.go
+L20:", "Specify gather target keyword")
+L21: Reconsider name for sortFlag
+L123: Coutnermove "too many opne files"
+L124: !!todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
+L150: Use goroutine
+L158: Countermove "too many open files"
+L173: file open and close to tmp string
+
+/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
+L48:for the moment
+L198:Create test data tuple list
+L201:Test`)
+L208:"
+
+-----| RESULT |-----
+find 2 files
+
+ALL FLAGS
+root="/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha"
+filetype="go txt"
+keywrod="TODO:"
+sort="on"
+result="on"

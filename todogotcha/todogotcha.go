@@ -7,23 +7,20 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
 
-// TODO:LIST
-// parse flags
-// search dirs
-// search in files
-// show result
-
 // flags
 var (
-	root         = flag.String("root", "./", "Specify search root")
-	suffix       = flag.String("filetype", "go txt", `Specify target file types into the " "`)
-	suffixList   []string
-	gatherTarget = flag.String("keyword", "TODO:", "Specify gather target keyword")
-	result       = flag.String("result", "on", "Specify result [on:off]?")
+	root       = flag.String("root", "./", "Specify search root")
+	suffix     = flag.String("filetype", "go txt", `Specify target file types into the " "`)
+	suffixList []string
+	keyword    = flag.String("keyword", "TODO:", "Specify gather target keyword")
+	// TODO: Reconsider name for sortFlag
+	sortFlag = flag.String("sort", "off", "Specify output list sorted [on:off]?")
+	result   = flag.String("result", "on", "Specify result [on:off]?")
 )
 
 func init() {
@@ -111,7 +108,7 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	return InfoCache
 }
 
-// suffixList
+// Use flag suffixList
 func suffixSeacher(filename string, targetSuffix []string) bool {
 	for _, x := range targetSuffix {
 		if strings.HasSuffix(filename, "."+x) {
@@ -123,13 +120,18 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 
 // specify filename and target, Gather target(TODOs), return todoList.
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
+// TODO: Coutnermove "too many opne files"
+// TODO: !!todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
 func gather(filename string, target string) (todoList []string, err error) {
-	todoList = []string{target}
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("todoGather:%v", err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("gather:%v", err)
+		}
+	}()
 
 	for sc, i := bufio.NewScanner(f), uint(1); sc.Scan(); i++ {
 		if err := sc.Err(); err != nil {
@@ -139,16 +141,13 @@ func gather(filename string, target string) (todoList []string, err error) {
 			todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
 		}
 	}
-
-	if len(todoList) == 1 {
-		return nil, nil
-	}
 	return todoList, nil
 }
 
 // にゃん
+// Use flag keyword
 func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string][]string) {
-	// TODO:Use goroutine
+	// TODO: Use goroutine
 	todoMap = make(map[string][]string)
 
 	//mux := new(sync.Mutex)
@@ -156,19 +155,8 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 
 	worker := func(filepath string) {
 		//defer wg.Done()
-
-		// TODO:Caution!!
-		// ファイルが多いとosのファイルディスクリプタ上限で叩かれるぅ...どうしよ...
-		// スレッドを増やしまくるgoだとよくハマるっぽい
-		// wgでカウント取って上限でwaitできれば良さそうだけど、カウンタは公開されてない
-		// muxと自前のカウンタで多分行ける...
-		// 取り敢えず簡単にカウント取って一定値でwaitする?
-		// os環境個別のディスクリプタ上限を取得する関数とかあれば管理できそうだけど見つかってぬぃ...
-		// これをクリアできないと大量のファイルを同時に走査するマルチスレッド使えない...
-		// 新しいルーチン呼ぶ前にファイルの内容をバッファに投げてクローズすれば良さそう?
-		// NewReader()なんかは結局ファイルディスクリプタ使っちゃってるっぽいから考えないといけぬぃ...
-		// 取り敢えずシングルスレッドで置いておく
-		todoList, err := gather(filepath, *gatherTarget)
+		// TODO: Countermove "too many open files"
+		todoList, err := gather(filepath, *keyword)
 		if err != nil {
 			log.Println(err)
 		}
@@ -182,7 +170,7 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	for dirname, infos := range infoMap {
 		for _, info := range infos {
 			if suffixSeacher(info.Name(), suffixList) {
-				// TODO:file open and close to tmp string
+				// TODO: file open and close to tmp string
 				//wg.Add(1)
 				//go worker(filepath.Join(dirname, info.Name()))
 				worker(filepath.Join(dirname, info.Name()))
@@ -192,7 +180,7 @@ func unlimitedGophersWroks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	//wg.Wait()
 	return todoMap
 }
-func useGophersProc() (todoMap map[string][]string) {
+func gophersProc() (todoMap map[string][]string) {
 	infomap := dirsCrawl(*root)
 	todoMap = unlimitedGophersWroks(infomap)
 	return todoMap
@@ -200,12 +188,30 @@ func useGophersProc() (todoMap map[string][]string) {
 
 // output to os.Stdout!
 func outputTODOList(todoMap map[string][]string) {
-	for filename, list := range todoMap {
-		fmt.Println(filename)
-		for _, s := range list {
-			fmt.Println(s)
+	if *sortFlag == "on" {
+		// Optional
+		var filenames []string
+		for filename := range todoMap {
+			filenames = append(filenames, filename)
 		}
-		fmt.Println()
+		sort.Strings(filenames)
+
+		for _, filename := range filenames {
+			fmt.Println(filename)
+			for _, todo := range todoMap[filename] {
+				fmt.Println(todo)
+			}
+			fmt.Println()
+		}
+	} else {
+		// Main
+		for filename, todoList := range todoMap {
+			fmt.Println(filename)
+			for _, s := range todoList {
+				fmt.Println(s)
+			}
+			fmt.Println()
+		}
 	}
 	if *result == "on" {
 		fmt.Println("-----| RESULT |-----")
@@ -213,41 +219,12 @@ func outputTODOList(todoMap map[string][]string) {
 		fmt.Println("ALL FLAGS")
 		fmt.Printf("root=%q\n", *root)
 		fmt.Printf("filetype=%q\n", *suffix)
-		fmt.Printf("keywrod=%q\n", *gatherTarget)
+		fmt.Printf("keywrod=%q\n", *keyword)
+		fmt.Printf("sort=%q\n", *sortFlag)
 		fmt.Printf("result=%q\n", *result)
 	}
 }
 func main() {
-
-	// TODO:Erase after test
-	//	todoMap, err := mainproc()
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-
-	todoMap := useGophersProc()
+	todoMap := gophersProc()
 	outputTODOList(todoMap)
-}
-
-// TODOGotcha!! main proc
-// TODO:erase after imprementertion to goroutine procs!!
-// This function is no used now
-func mainproc() (todoMap map[string][]string, gatherErr error) {
-	todoMap = make(map[string][]string)
-	infomap := dirsCrawl(*root)
-	for dirname, infos := range infomap {
-		for _, info := range infos {
-			if suffixSeacher(info.Name(), suffixList) {
-				tmp, err := gather(filepath.Join(dirname, info.Name()), *gatherTarget)
-				if err != nil {
-					log.Printf("todoGather:%v", err)
-					gatherErr = fmt.Errorf("todoGather:find errors. open or close or scan error.\n")
-				}
-				if tmp != nil {
-					todoMap[filepath.Join(dirname, info.Name())] = tmp
-				}
-			}
-		}
-	}
-	return todoMap, gatherErr
 }

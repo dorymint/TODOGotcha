@@ -207,7 +207,6 @@ func TestGather(t *testing.T) {
 
 	searchWord := "TODO:"
 	expected := []string{
-		searchWord,
 		"L1:" + "Test",
 	}
 

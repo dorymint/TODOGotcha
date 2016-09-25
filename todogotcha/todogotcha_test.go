@@ -120,8 +120,12 @@ func TestDrisCrawl(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer f.Close()
-			infos, err  := f.Readdir(0)
+			defer func() {
+				if errclose := f.Close(); errclose != nil {
+					t.Fatal(errclose)
+				}
+			}()
+			infos, err := f.Readdir(0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -186,7 +190,11 @@ func writeContent(t *testing.T, content string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() {
+		if errclose := f.Close(); errclose != nil {
+			t.Fatal(errclose)
+		}
+	}()
 
 	_, err = f.WriteString(content)
 	if err != nil {

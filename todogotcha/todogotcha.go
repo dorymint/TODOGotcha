@@ -264,7 +264,7 @@ func OutputTODOList(todoMap map[string][]string) {
 
 	if *result == "on" {
 		fmt.Println("-----| RESULT |-----")
-		fmt.Printf("find %v files\n\n", len(todoMap))
+		fmt.Printf("%v files found have the keyword\n\n", len(todoMap))
 		fmt.Println("ALL FLAGS")
 		fmt.Printf("root=%q\n", *root)
 		fmt.Printf("filetype=%q\n", *suffix)

@@ -10,19 +10,6 @@ Show the "TODO List"
 ---
 Output from ```todogotcha -keyword "TODO: "```  
 ```
-/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
-L89:To simple! delete this?
-L106:To simple!!
-L211:Test
-L233:TODO: TODO:
-L234:2line
-L237:TODO:",
-L267:add test case
-L312:Create test data and run
-L315:Add another case
-L327:Add another case
-L333:Add another case
-
 /home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha.go
 L22:Reconsider name for sortFlag
 L28:今はコメントアウト
@@ -36,16 +23,28 @@ L237:To lighten
 L246:Fix to Duplication
 L277:エラーをログに出すのを関数単位じゃなくmainまでatを付けて持って帰りたい
 
+/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
+L89:To simple! delete this?
+L106:To simple!!
+L211:Test
+L233:TODO: TODO:
+L234:2line
+L237:TODO:",
+L267:add test case
+L312:Create test data and run
+L315:Add another case
+L327:Add another case
+L333:Add another case
+
 -----| RESULT |-----
-find 2 files
+2 files found have the keyword
 
 ALL FLAGS
 root="/home/dory/gowork/src/github.com/dory/go-todogotcha"
 filetype="go txt"
 keywrod="TODO: "
 sort="off"
-result="on"
-```
+result="on"```
 
 ## Installation
 ---

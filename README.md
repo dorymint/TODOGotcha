@@ -58,6 +58,11 @@ go get github.com/dorymint/go-TODOGothca/todogotcha
 ```
 todogotcha
 ```
+If you need output to file  
+Example  
+```
+todogotcha > ./TODOList.log
+```
 Display the found TODO list like example
 
 ## Option

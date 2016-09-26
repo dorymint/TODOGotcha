@@ -40,51 +40,21 @@ var (
 	}
 )
 
-func TestMain(m *testing.M) {
-	result := func() int {
-		// flag
-		var err error
-
-		// TODO:for the moment
-		*root, err = filepath.Abs("../../")
-		if err != nil {
-			log.Fatalf("TestMain:%v\n", err)
-		}
-
-		// make temp
-		TmpRoot = makeTempDir()
-		defer func() {
-			if err := os.RemoveAll(TmpRoot); err != nil {
-				log.Fatal(err)
-			}
-			log.Println("tmproot deleted")
-		}()
-		log.Printf("tmproot is = %v\n", TmpRoot)
-
-		// define dirspath string(tmpRoot + <tmpDirs>)
-		for i, x := range TmpDirs {
-			TmpDirs[i] = filepath.Join(TmpRoot, x)
-		}
-		return m.Run()
-	}()
-	os.Exit(result)
-}
-
 // filemap is map[dirname][]files
-func makeTempDir() (root string) {
+func makeTempDir() (tmproot string) {
 	tmproot, err := ioutil.TempDir("", "crawl")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// create tempdir
+	// create tempdirs
 	for _, x := range TmpDirs {
 		dirpath := filepath.Join(tmproot, x)
 		if err := os.MkdirAll(dirpath, 0700); err != nil {
 			log.Fatal(err)
 		}
 
-		// create tempfile
+		// create tempfiles
 		for _, y := range TmpFilesMap[x] {
 			filepath := filepath.Join(dirpath, y)
 			if err := ioutil.WriteFile(filepath, nil, 0700); err != nil {
@@ -95,6 +65,28 @@ func makeTempDir() (root string) {
 	return tmproot
 }
 
+func TestMain(m *testing.M) {
+	result := func() int {
+		// make temp
+		TmpRoot = makeTempDir()
+		log.Printf("tmproot=%v\n", TmpRoot)
+		defer func() {
+			if err := os.RemoveAll(TmpRoot); err != nil {
+				log.Fatal(err)
+			}
+			log.Println("tmproot deleted")
+		}()
+
+		// TmpRoot + TmpDirs
+		for i, x := range TmpDirs {
+			TmpDirs[i] = filepath.Join(TmpRoot, x)
+		}
+		return m.Run()
+	}()
+	os.Exit(result)
+}
+
+// TODO: To simple! delete this?
 func deepEqualStrings(t *testing.T, expected, out []string) {
 	if reflect.DeepEqual(expected, out) {
 		return
@@ -111,6 +103,7 @@ func deepEqualStrings(t *testing.T, expected, out []string) {
 	t.FailNow()
 }
 
+// TODO: To simple!!
 func TestDrisCrawl(t *testing.T) {
 	// Create expected os.FileInfo Map
 	expectedInfosMap := make(map[string][]os.FileInfo)
@@ -164,29 +157,29 @@ func TestSuffixSearcher(t *testing.T) {
 		"go",
 		"txt",
 	}
-	filename := []string{
+	fileNames := []string{
 		"test1.go",
 		"test2.txt",
 	}
-	fatalname := []string{
+	ignoreNames := []string{
 		"fata1go",
 		"fatal2txt",
 	}
 
-	for _, x := range filename {
+	for _, x := range fileNames {
 		if !suffixSeacher(x, targetSuffix) {
-			t.Fatalf("expected true, but false %v\n", x)
+			t.Fatalf("expected return true, but false %v\n", x)
 		}
 	}
-	for _, x := range fatalname {
+	for _, x := range ignoreNames {
 		if suffixSeacher(x, targetSuffix) {
-			t.Fatalf("expected false, but true %v\n", x)
+			t.Fatalf("expected return false, but true %v\n", x)
 		}
 	}
 }
 
 func writeContent(t *testing.T, content string) string {
-	f, err := ioutil.TempFile("", "level2Test")
+	f, err := ioutil.TempFile("", "todogotcha")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,35 +196,167 @@ func writeContent(t *testing.T, content string) string {
 	return f.Name()
 }
 
-// TODO:Create test data tuple list
 func TestGather(t *testing.T) {
-	// input content
-	filename := writeContent(t, `// TODO:Test`)
-	defer func() {
-		if err := os.Remove(filename); err != nil {
-			t.Fatal(err)
+	type test struct {
+		filecontent string
+		expected    []string
+		keyword     string
+	}
+	tests := []test{
+
+		// patern1
+		{
+			filecontent: `
+in the file content
+// TODO: Test
+end
+`,
+			expected: []string{
+				"L3:" + " Test",
+			},
+			keyword: "TODO:",
+		},
+
+		// patern2
+		{
+			filecontent: `
+case non target retunr nil
+`,
+			expected: nil,
+			keyword:  "TODO:",
+		},
+
+		// patern3
+		{
+			filecontent: `
+case 2line and many keywords
+TODO: TODO: TODO:
+TODO: 2line
+`,
+			expected: []string{
+				"L3:" + " TODO: TODO:",
+				"L4:" + " 2line",
+			},
+			keyword: "TODO:",
+		},
+
+		// patern4
+		{
+			filecontent: `
+case changed keyword
+// NEXT: Test
+end
+`,
+			expected: []string{
+				"L3:" + " Test",
+			},
+			keyword: "NEXT:",
+		},
+
+		// patern5
+		{
+			filecontent: `
+case empty keyword
+`,
+			expected: []string{
+				"L1:" + "",
+				"L2:" + "case empty keyword",
+			},
+			keyword: "",
+		},
+		// TODO: add test case
+	}
+
+	run := func(data test, keyword string) {
+		filename := writeContent(t, data.filecontent)
+		defer func() {
+			if err := os.Remove(filename); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		out := gather(filename, keyword)
+		if !reflect.DeepEqual(data.expected, out) {
+			t.Error("not equal!")
+			t.Error("expected")
+			for _, x := range data.expected {
+				t.Error(x)
+			}
+			t.Error("but out")
+			for _, x := range out {
+				t.Error(x)
+			}
+			t.FailNow()
 		}
-	}()
-
-	searchWord := "TODO:"
-	expected := []string{
-		"L1:" + "Test",
 	}
-
-	out, err := gather(filename, searchWord)
-	if err != nil {
-		t.Fatal(err)
+	// Test
+	for _, x := range tests {
+		run(x, x.keyword)
 	}
+}
+
+
+func deepEqualMaps(t *testing.T, expected, out map[string][]string) {
 	if !reflect.DeepEqual(expected, out) {
-		t.Error("not equal!")
+		t.Error("not uqual!!")
 		t.Error("expected")
-		for _, x := range expected {
-			t.Error(x)
+		for key, x := range expected {
+			t.Error(key, x)
 		}
 		t.Error("but out")
-		for _, x := range out {
-			t.Error(x)
+		for key, x := range out {
+			t.Error(key, x)
 		}
 		t.FailNow()
 	}
 }
+// TODO: Create test data and run
+func TestUnlimitedGopherWorks(t *testing.T) {
+	// empty paturn
+	// TODO: Add another case
+	// pre request is dirsCrawl Green!
+	infomap := dirsCrawl(TmpRoot)
+
+	expected := make(map[string][]string)
+	out := unlimitedGopherWorks(infomap, []string{"go", "txt"}, "TODO:")
+	deepEqualMaps(t, expected, out)
+}
+
+// Integration test
+func TestGophersProc(t *testing.T){
+	// empty
+	// TODO: Add another case
+	out := GophersProc(TmpRoot)
+	expected := make(map[string][]string)
+	deepEqualMaps(t, expected, out)
+}
+
+// TODO: Add another case
+func ExampleOutputTODOList() {
+	todoMap := make(map[string][]string)
+	todoMap["/tmp/test"] = []string{ "L1: test", }
+
+	// flgas
+	*sortFlag = "off"
+	*result = "off"
+	OutputTODOList(todoMap)
+	// Unordered Output:
+	// /tmp/test
+	// L1: test
+}
+func ExampleOutputTODOList_sortON() {
+	todoMap := make(map[string][]string)
+	todoMap["/tmp/test"] = []string{ "L1: test", }
+	todoMap["/a"] = []string{ "L2: sort on", }
+
+	// flgas
+	*sortFlag = "on"
+	*result = "off"
+	OutputTODOList(todoMap)
+	// Output:
+	// /a
+	// L2: sort on
+	//
+	// /tmp/test
+	// L1: test
+}
+

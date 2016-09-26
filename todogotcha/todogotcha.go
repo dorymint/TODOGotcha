@@ -25,11 +25,14 @@ var (
 )
 
 func init() {
+	// TODO: 今はコメントアウト
+	// runtime.GOMAXPROCS(runtime.NumCPU())
+
 	var err error
 	flag.Parse()
 	*root, err = filepath.Abs(*root)
 	if err != nil {
-		log.Fatalf("init:%v\n", err)
+		log.Fatalf("init:%v", err)
 	}
 	suffixList = strings.Split(*suffix, " ")
 	argsCheck()
@@ -38,13 +41,13 @@ func init() {
 // Checking after parsing flags
 func argsCheck() {
 	if len(flag.Args()) != 0 {
-		fmt.Printf("cmd = %v\n\n", os.Args)
-		fmt.Printf("-----| Unknown option |-----\n\n")
+		fmt.Fprintf(os.Stderr, "cmd = %v\n\n", os.Args)
+		fmt.Fprintf(os.Stderr, "-----| Unknown option |-----\n\n")
 		for _, x := range flag.Args() {
-			fmt.Println(x)
+			fmt.Fprintln(os.Stderr, x)
 		}
-		fmt.Printf("\n")
-		fmt.Println("-----| Usage |-----")
+		fmt.Fprintf(os.Stderr, "\n")
+		fmt.Fprintln(os.Stderr, "-----| Usage |-----")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -131,10 +134,11 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 // specify filename and target, Gather target(TODOs), return todoList.
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
-func gather(filename string, target string) (todoList []string, err error) {
+func gather(filename string, target string) (todoList []string) {
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("todoGather:%v", err)
+		log.Printf("gather:%v", err)
+		return nil
 	}
 	defer func() {
 		if err := f.Close(); err != nil {
@@ -142,28 +146,28 @@ func gather(filename string, target string) (todoList []string, err error) {
 		}
 	}()
 
-	for sc, i := bufio.NewScanner(f), uint(1); sc.Scan(); i++ {
+	sc := bufio.NewScanner(f)
+	for i := uint(1); sc.Scan(); i++ {
 		if err := sc.Err(); err != nil {
-			return nil, fmt.Errorf("todoGather:%v", err)
+			log.Printf("gather:%v", err)
+			return nil
 		}
 		if index := strings.Index(sc.Text(), target); index != -1 {
 			todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
 		}
 	}
-	return todoList, nil
+	return todoList
 }
 
-// にゃん
 // Use flag keyword
 // NOTE:
 // gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 // TODO: Review
 // TODO: To simple
-func unlimitedGophersWorks(infoMap map[string][]os.FileInfo) (todoMap map[string][]string) {
+func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
-
 	// NOTE: Countermove "too many open files"!!
 	gophersLimit := 512 // NOTE: This Limit is requir (Limit < file descriptor limits)
 	var gophersLimiter int
@@ -180,11 +184,7 @@ func unlimitedGophersWorks(infoMap map[string][]os.FileInfo) (todoMap map[string
 			mux.Unlock()
 		}()
 
-		todoList, err := gather(filepath, *keyword)
-		if err != nil {
-			log.Println(err)
-		}
-
+		todoList := gather(filepath, keyword)
 		if todoList != nil {
 			mux.Lock()
 			todoMap[filepath] = todoList
@@ -194,7 +194,7 @@ func unlimitedGophersWorks(infoMap map[string][]os.FileInfo) (todoMap map[string
 
 	for dirname, infos := range infoMap {
 		for _, info := range infos {
-			if suffixSeacher(info.Name(), suffixList) {
+			if suffixSeacher(info.Name(), filetypes) {
 				wg.Add(1)
 				mux.Lock()
 				gophersLimiter++
@@ -204,13 +204,13 @@ func unlimitedGophersWorks(infoMap map[string][]os.FileInfo) (todoMap map[string
 
 				// NOTE:
 				// Countermove "too many open files"
-				// gophersLimiterの読み出しで値が不確定だけどこれは大体で問題ないはず
+				// gophersLimiterの読み出しで値が不確定だけどこれは大体合ってれば問題ないはず
 				// TODO: それでも気になるので、速度を落とさずいい方法があれば修正する
 				if gophersLimiter > gophersLimit/2 {
-					time.Sleep(time.Millisecond)
+					time.Sleep(time.Microsecond)
 				}
 				if gophersLimiter > gophersLimit {
-					log.Printf("Open files %v over, Gophers Limited!!", gophersLimit)
+					log.Printf("Open files %v over, Do limitation to Gophers!!", gophersLimit)
 					log.Printf("Wait gophers...")
 					wg.Wait()
 					log.Printf("Done!")
@@ -224,14 +224,15 @@ func unlimitedGophersWorks(infoMap map[string][]os.FileInfo) (todoMap map[string
 	wg.Wait()
 	return todoMap
 }
-func gophersProc() (todoMap map[string][]string) {
-	infomap := dirsCrawl(*root)
-	todoMap = unlimitedGophersWorks(infomap)
-	return todoMap
+// GophersProc is get todoMap data
+func GophersProc(root string) (todoMap map[string][]string) {
+	infomap := dirsCrawl(root)
+	todoMap = unlimitedGopherWorks(infomap, suffixList, *keyword)
+	return
 }
 
-// Output to os.Stdout!
-func outputTODOList(todoMap map[string][]string) {
+// OutputTODOList is output crawl results
+func OutputTODOList(todoMap map[string][]string) {
 	// TODO: To lighten
 	if *sortFlag == "on" {
 		// Optional
@@ -271,7 +272,10 @@ func outputTODOList(todoMap map[string][]string) {
 		fmt.Printf("result=%q\n", *result)
 	}
 }
+
+// TODO: エラーをログに出すのを関数単位じゃなくmainまでatを付けて持って帰りたい
+// NOTE: fmt.Errorf()でatを入れて返すとエラーのタイプが変わる
 func main() {
-	todoMap := gophersProc()
-	outputTODOList(todoMap)
+	todoMap := GophersProc(*root)
+	OutputTODOList(todoMap)
 }

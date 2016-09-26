@@ -1,15 +1,3 @@
-# TODOGotcha
----
-ガッチャ!  
-
-Search from current directory recursively.  
-Create "TODO List" from search files.  
-Show the "TODO List".  
-
-## Example
----
-Output from ```todogotcha -keyword "TODO: "```  
-```
 /home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
 L89:To simple! delete this?
 L106:To simple!!
@@ -45,51 +33,3 @@ filetype="go txt"
 keywrod="TODO: "
 sort="off"
 result="on"
-```
-
-## Installation
----
-```
-go get github.com/dorymint/go-TODOGothca/todogotcha
-```
-
-## Usage
----
-```
-todogotcha
-```
-Display the found TODO list like example
-
-## Option
----
-**Show the flags and default parameter**
-```
-todogotcha -h
-```
-
-**Defaults options**
- - filetype "go txt"
- - keyword "TODO:"
- - root "./"
- - sort "off"
- - result "on"
-
-**This example is changed default option**
-```
-todogotcha -root "../" \
-          -filetype "go c cc cpp txt py" \
-          -keyword "NOTE: "
-```
-
-```
--root "<Specify search root directory>"
--filetype "<Target file types list>"
--keyword "<Gather target word>"
-
--sort="on" or "off"
--result="on" or "off"
-```
-
-## Licence
----
-MIT

@@ -44,7 +44,8 @@ root="/home/dory/gowork/src/github.com/dory/go-todogotcha"
 filetype="go txt"
 keywrod="TODO: "
 sort="off"
-result="on"```
+result="on"
+```
 
 ## Installation
 ---

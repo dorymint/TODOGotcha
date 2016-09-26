@@ -232,6 +232,7 @@ func GophersProc(root string) (todoMap map[string][]string) {
 }
 
 // OutputTODOList is output crawl results
+// TODO: Refactor
 func OutputTODOList(todoMap map[string][]string) {
 	// TODO: To lighten
 	if *sortFlag == "on" {

@@ -41,7 +41,7 @@ var (
 )
 
 // filemap is map[dirname][]files
-func makeTempDir() (tmproot string) {
+func makeTempDirs() (tmproot string) {
 	tmproot, err := ioutil.TempDir("", "crawl")
 	if err != nil {
 		log.Fatal(err)
@@ -68,7 +68,7 @@ func makeTempDir() (tmproot string) {
 func TestMain(m *testing.M) {
 	result := func() int {
 		// make temp
-		TmpRoot = makeTempDir()
+		TmpRoot = makeTempDirs()
 		log.Printf("tmproot=%v\n", TmpRoot)
 		defer func() {
 			if err := os.RemoveAll(TmpRoot); err != nil {
@@ -294,7 +294,6 @@ case empty keyword
 	}
 }
 
-
 func deepEqualMaps(t *testing.T, expected, out map[string][]string) {
 	if !reflect.DeepEqual(expected, out) {
 		t.Error("not uqual!!")
@@ -309,6 +308,7 @@ func deepEqualMaps(t *testing.T, expected, out map[string][]string) {
 		t.FailNow()
 	}
 }
+
 // TODO: Create test data and run
 func TestUnlimitedGopherWorks(t *testing.T) {
 	// empty paturn
@@ -322,7 +322,7 @@ func TestUnlimitedGopherWorks(t *testing.T) {
 }
 
 // Integration test
-func TestGophersProc(t *testing.T){
+func TestGophersProc(t *testing.T) {
 	// empty
 	// TODO: Add another case
 	out := GophersProc(TmpRoot)
@@ -333,7 +333,7 @@ func TestGophersProc(t *testing.T){
 // TODO: Add another case
 func ExampleOutputTODOList() {
 	todoMap := make(map[string][]string)
-	todoMap["/tmp/test"] = []string{ "L1: test", }
+	todoMap["/tmp/test"] = []string{"L1: test"}
 
 	// flgas
 	*sortFlag = "off"
@@ -345,8 +345,8 @@ func ExampleOutputTODOList() {
 }
 func ExampleOutputTODOList_sortON() {
 	todoMap := make(map[string][]string)
-	todoMap["/tmp/test"] = []string{ "L1: test", }
-	todoMap["/a"] = []string{ "L2: sort on", }
+	todoMap["/tmp/test"] = []string{"L1: test"}
+	todoMap["/a"] = []string{"L2: sort on"}
 
 	// flgas
 	*sortFlag = "on"
@@ -359,4 +359,3 @@ func ExampleOutputTODOList_sortON() {
 	// /tmp/test
 	// L1: test
 }
-

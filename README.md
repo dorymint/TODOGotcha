@@ -2,9 +2,9 @@
 ---
 ガッチャ!  
 
-Search from current directory recursively.  
-Create "TODO List" from search files.  
-Show the "TODO List".  
+Search from current directory recursively  
+Create "TODO List" from search files  
+Show the "TODO List"  
 
 ## Example
 ---

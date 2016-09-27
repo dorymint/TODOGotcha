@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// TODO: Add flag specify search files
+// TODO: Add flag specify search directory, is do not recursively
+
 // flags
 var (
 	root       = flag.String("root", "./", "Specify search root directory")

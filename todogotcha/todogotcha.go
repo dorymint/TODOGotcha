@@ -53,7 +53,7 @@ func argsCheck() {
 	}
 }
 
-// Use wait group!!
+// Use wait group dirsCrawl
 // TODO: To simple
 func dirsCrawl(root string) map[string][]os.FileInfo {
 	// mux group
@@ -66,48 +66,40 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	var crawl func(string)
 	crawl = func(dirname string) {
 		defer wg.Done()
+		infos := new([]os.FileInfo)
 
+		// NOTE: Countermove "too many open files"
 		mux.Lock()
-		if dirsCache[dirname] {
-			mux.Unlock()
-			return
-		}
-		dirsCache[dirname] = true
-
-		f, err := os.Open(dirname)
-		if err != nil {
-			log.Printf("crawl:%v", err)
-			mux.Unlock()
-			return
-		}
-		// Case of f.Readdir error use this
-		defer func() {
-			// TODO: Fix from bad implementation
-			// os.Invalid == (f == nil)
-			// This comparison is maybe bad implementation...
-			errclose := f.Close()
-			if errclose != nil && errclose.Error() != os.ErrInvalid.Error() {
-				log.Printf("crawl:%v", errclose)
+		ok := func() bool {
+			if dirsCache[dirname] {
+				return false
 			}
+			dirsCache[dirname] = true
+
+			f, err := os.Open(dirname)
+			if err != nil {
+				log.Printf("crawl:%v", err)
+				return false
+			}
+			defer func() {
+				if errclose := f.Close(); errclose != nil {
+					log.Printf("crawl:%v", errclose)
+				}
+			}()
+
+			*infos, err = f.Readdir(0)
+			if err != nil {
+				log.Printf("crawl info:%v", err)
+				return false
+			}
+			infoCache[dirname] = *infos
+			return true
 		}()
-
-		info, err := f.Readdir(0)
-		if err != nil {
-			log.Printf("crawl info:%v", err)
-			mux.Unlock()
-			return
-		}
-		infoCache[dirname] = info
-
-		// NOTE: Countermove for "too many open files"
-		if err := f.Close(); err != nil {
-			log.Printf("crawl:%v", err)
-		}
 		mux.Unlock()
-		// "too many open files" の対応でlockしたけど...
-		// ここまでlockするならスレッド分ける意義が薄そう...
+		if !ok { return }
+		// NOTE: ここまでロックするならスレッドを分ける意味は薄いかも
 
-		for _, x := range info {
+		for _, x := range *infos {
 			if x.IsDir() {
 				wg.Add(1)
 				go crawl(filepath.Join(dirname, x.Name()))

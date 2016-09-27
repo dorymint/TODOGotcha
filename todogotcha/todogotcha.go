@@ -160,7 +160,10 @@ func gather(filename string, target string) (todoList []string) {
 func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
+
 	// NOTE: Countermove "too many open files"!!
+	// TODO: 出来れば (descriptor limits / 2) で値を決めたい
+	// 環境依存のリミットを取得する方法を探す
 	gophersLimit := 512 // NOTE: This Limit is requir (Limit < file descriptor limits)
 	var gophersLimiter int
 

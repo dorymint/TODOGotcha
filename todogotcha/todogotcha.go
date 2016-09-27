@@ -78,18 +78,18 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 
 			f, err := os.Open(dirname)
 			if err != nil {
-				log.Printf("crawl:%v", err)
+				log.Printf("dirsCrawl:%v", err)
 				return false
 			}
 			defer func() {
 				if errclose := f.Close(); errclose != nil {
-					log.Printf("crawl:%v", errclose)
+					log.Printf("dirsCrawl:%v", errclose)
 				}
 			}()
 
 			*infos, err = f.Readdir(0)
 			if err != nil {
-				log.Printf("crawl info:%v", err)
+				log.Printf("dirsCrawl info:%v", err)
 				return false
 			}
 			infoCache[dirname] = *infos

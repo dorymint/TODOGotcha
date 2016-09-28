@@ -15,21 +15,25 @@ import (
 
 // TODO: Add flag specify search files
 // TODO: Add flag specify search directory, is do not recursively
+// TODO: Add flag create list date add result
 
 // flags
 var (
-	root       = flag.String("root", "./", "Specify search root directory")
-	suffix     = flag.String("filetype", "go txt", `Specify target file types into the " "`)
-	suffixList []string
-	keyword    = flag.String("keyword", "TODO:", "Specify gather target keyword")
+	root        = flag.String("root", "./", "Specify search root directory")
+	suffix      = flag.String("filetype", "go txt", `Specify target file types into the " "`)
+	suffixList  []string
+	keyword     = flag.String("keyword", "TODO:", "Specify gather target keyword")
+	fileSpecify = flag.String("files", "", "Specify file paths")
+	dirSpecify  = flag.String("dirs", "", "Specify directory, This want not recursively serach")
 	// TODO: Reconsider name for sortFlag
 	sortFlag = flag.String("sort", "off", "Specify sorted flags [on:off]?")
 	result   = flag.String("result", "on", "Specify result [on:off]?")
+	date     = flag.String("date", "off", "Add output DATE in result [on:off]?")
 )
 
 func init() {
-	// TODO: 今はコメントアウト
-	// runtime.GOMAXPROCS(runtime.NumCPU())
+	// TODO: GOMAXPROCS 今はコメントアウト
+	//runtime.GOMAXPROCS(runtime.NumCPU())
 
 	var err error
 	flag.Parse()
@@ -40,7 +44,6 @@ func init() {
 	suffixList = strings.Split(*suffix, " ")
 	argsCheck()
 }
-
 // Checking after parsing flags
 func argsCheck() {
 	if len(flag.Args()) != 0 {
@@ -79,20 +82,10 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 			}
 			dirsCache[dirname] = true
 
-			f, err := os.Open(dirname)
+			var err error
+			*infos, err = getInfos(dirname)
 			if err != nil {
-				log.Printf("dirsCrawl:%v", err)
-				return false
-			}
-			defer func() {
-				if errclose := f.Close(); errclose != nil {
-					log.Printf("dirsCrawl:%v", errclose)
-				}
-			}()
-
-			*infos, err = f.Readdir(0)
-			if err != nil {
-				log.Printf("dirsCrawl info:%v", err)
+				log.Printf("crawl:%v", err)
 				return false
 			}
 			infoCache[dirname] = *infos
@@ -115,8 +108,25 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	wg.Wait()
 	return infoCache
 }
+// for dirsCrawl and specify filepath
+func getInfos(dirname string) ([]os.FileInfo, error){
+	f, err := os.Open(dirname)
+	if err != nil {
+		return nil, fmt.Errorf("getInfos:%v", err)
+	}
+	defer func() {
+		if errclose := f.Close(); errclose != nil {
+			log.Printf("getInfos:%v", errclose)
+		}
+	}()
+	infos, err := f.Readdir(0)
+	if err != nil {
+		return nil, fmt.Errorf("getInfos:%v", err)
+	}
+	return infos, nil
+}
 
-// Use flag suffixList
+// Use suffixList []string
 func suffixSeacher(filename string, targetSuffix []string) bool {
 	for _, x := range targetSuffix {
 		if strings.HasSuffix(filename, "."+x) {
@@ -222,10 +232,24 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 	wg.Wait()
 	return todoMap
 }
+
 // GophersProc is get todoMap data
 func GophersProc(root string) (todoMap map[string][]string) {
-	infomap := dirsCrawl(root)
-	todoMap = unlimitedGopherWorks(infomap, suffixList, *keyword)
+	// TODO: switch from flag to specify directory or files
+	infomap := new(map[string][]os.FileInfo)
+	/* 
+	// TODO: DODODO(´・ω・`)
+	switch {
+	case *fileSpecify != "":
+		filepath.Abs(*fileSpecify)
+	case *dirSpecify != "":
+	default:
+		*infomap = dirsCrawl(root)
+	}
+	*/
+
+	*infomap = dirsCrawl(root)
+	todoMap = unlimitedGopherWorks(*infomap, suffixList, *keyword)
 	return
 }
 
@@ -250,7 +274,7 @@ func OutputTODOList(todoMap map[string][]string) {
 			fmt.Println()
 		}
 	} else {
-		// Main ...duplication
+		// TODO: Fix to Duplication
 		for filename, todoList := range todoMap {
 			fmt.Println(filename)
 			for _, s := range todoList {
@@ -263,16 +287,23 @@ func OutputTODOList(todoMap map[string][]string) {
 	if *result == "on" {
 		fmt.Println("-----| RESULT |-----")
 		fmt.Printf("%v files found have the keyword\n\n", len(todoMap))
+
 		fmt.Println("ALL FLAGS")
 		fmt.Printf("root=%q\n", *root)
 		fmt.Printf("filetype=%q\n", *suffix)
 		fmt.Printf("keywrod=%q\n", *keyword)
 		fmt.Printf("sort=%q\n", *sortFlag)
 		fmt.Printf("result=%q\n", *result)
+		fmt.Printf("date=%q\n", *date)
+		if *date == "on" {
+			fmt.Print("\n")
+			fmt.Printf("DATE:%v\n", time.Now())
+		}
 	}
 }
 
 // TODO: エラーをログに出すのを関数単位じゃなくmainまでatを付けて持って帰りたい
+// NOTE: logを受けるグローバルなチャンネル作ってロガーをinitでgo logger(){ for{log.Print(<-ch)} }してれば軽いかも?
 // NOTE: fmt.Errorf()でatを入れて返すとエラーのタイプが変わる
 func main() {
 	todoMap := GophersProc(*root)

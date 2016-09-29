@@ -63,12 +63,15 @@ If you need output to file
 ```
 todogotcha > ./TODOList.log
 ```
-
+test
 ## Option
 **Flags**
+
 | Flags | Defaults | Example |
 | :-: | :- | :-: |
 | root | ./ | -root ./to/dir/path/ |
+
+
 | filetype | "go txt" | -filetype cpp |
 | keyword | "TODO\:" | -keyword "ToDo\: " |
 | file | none | -file ./path/to/file1 |

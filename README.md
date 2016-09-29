@@ -45,6 +45,7 @@ filetype="go txt"
 keywrod="TODO: "
 sort="off"
 result="on"
+
 ```
 
 ## Installation
@@ -58,31 +59,20 @@ go get github.com/dorymint/go-TODOGothca/todogotcha
 Display the found TODO list like example
 ```
 todogotcha
+
 ```
-If you need output to file  
+
+If you need output to file
 ```
 todogotcha > ./TODOList.log
+
 ```
 ## Option
-**Flags**
-
-|Flags|Defaults|Example|
-|:-:|:-|:-:|
-|root|\.\/|-root \./to/dir/path/|
-
-
-| filetype | "go txt" | -filetype cpp |
-| keyword | "TODO\:" | -keyword "ToDo\: " |
-| file | none | -file ./path/to/file1 |
-| recursively | on | -recursively off |
-| result | on | -result off |
-| date | off | -date on |
-| sort | off | -date on |
-
 ---
 **Show the flags and default parameter**
 ```
 todogotcha -h
+
 ```
 
 **Defaults options**
@@ -97,6 +87,7 @@ todogotcha -h
 todogotcha -root "../" \
           -filetype "go c cc cpp txt py" \
           -keyword "NOTE: "
+
 ```
 
 
@@ -109,6 +100,7 @@ todogotcha -root "../" \
 
 -sort="on" or "off"
 -result="on" or "off"
+
 ```
 
 ## Licence

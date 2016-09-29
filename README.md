@@ -65,6 +65,18 @@ todogotcha > ./TODOList.log
 ```
 
 ## Option
+**Flags**
+| Flags | Defaults | Example |
+| :-: | :- | :-: |
+| root | ./ | -root ./to/dir/path/ |
+| filetype | "go txt" | -filetype cpp |
+| keyword | "TODO\:" | -keyword "ToDo\: " |
+| file | none | -file ./path/to/file1 |
+| recursively | on | -recursively off |
+| result | on | -result off |
+| date | off | -date on |
+| sort | off | -date on |
+
 ---
 **Show the flags and default parameter**
 ```
@@ -79,24 +91,13 @@ todogotcha -h
  - result "on"
 
 **This example is changed default option**
-
 ```
 todogotcha -root "../" \
           -filetype "go c cc cpp txt py" \
           -keyword "NOTE: "
-```  
+```
 
-**Flags**
-| Flags | Defaults | Example |
-| :-: | :- | :-: |
-| root | ./ | -root ./to/dir/path/ |
-| filetype | "go txt" | -filetype cpp |
-| keyword | "TODO\:" | -keyword "ToDo\: " |
-| file | none | -file ./path/to/file1 |
-| recursively | on | -recursively off |
-| result | on | -result off |
-| date | off | -date on |
-| sort | off | -date on |
+
 
 
 ```

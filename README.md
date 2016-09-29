@@ -96,6 +96,10 @@ todogotcha -root "../" \
 | date | off | -date on |
 | sort | off | -date on |
 
+| test | test | test|
+| :- | -: | :-: |
+| hello | hello | hello |
+
 ```
 -root "<Specify search root directory>"
 -filetype "<Target file types list>"

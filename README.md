@@ -79,11 +79,13 @@ todogotcha -h
  - result "on"
 
 **This example is changed default option**
+
 ```
 todogotcha -root "../" \
           -filetype "go c cc cpp txt py" \
           -keyword "NOTE: "
-```
+```  
+
 
 | Flags | Defaults | Example |
 | :-: | :- | :-: |
@@ -96,9 +98,6 @@ todogotcha -root "../" \
 | date | off | -date on |
 | sort | off | -date on |
 
-| test | test | test|
-| :- | -: | :-: |
-| hello | hello | hello |
 
 ```
 -root "<Specify search root directory>"

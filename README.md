@@ -86,7 +86,7 @@ todogotcha -root "../" \
           -keyword "NOTE: "
 ```  
 
-
+**Flags**
 | Flags | Defaults | Example |
 | :-: | :- | :-: |
 | root | ./ | -root ./to/dir/path/ |

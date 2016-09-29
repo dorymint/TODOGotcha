@@ -15,20 +15,22 @@ import (
 
 // TODO: Add flag specify search files
 // TODO: Add flag specify search directory, is do not recursively
-// TODO: Add flag create list date add result
 
 // flags
 var (
-	root        = flag.String("root", "./", "Specify search root directory")
-	suffix      = flag.String("filetype", "go txt", `Specify target file types into the " "`)
-	suffixList  []string
-	keyword     = flag.String("keyword", "TODO:", "Specify gather target keyword")
-	fileSpecify = flag.String("files", "", "Specify file paths")
-	dirSpecify  = flag.String("dirs", "", "Specify directory, This want not recursively serach")
+	root            = flag.String("root", "./", "Specify search root directory")
+	suffix          = flag.String("filetype", "go txt", `Specify target file types into the " "`)
+	suffixList      []string
+	keyword         = flag.String("keyword", "TODO:", "Specify gather target keyword")
+	fileListFlag    = flag.String("file", "", `Specify files path separator is ";" "/path/to/file1;/path/to/file2"`)
+	specifyFileList []string
+	dirsFlag        = flag.String("dir", "", "Specify directory, This want not recursively serach")
+	specifyDirList  []string
 	// TODO: Reconsider name for sortFlag
-	sortFlag = flag.String("sort", "off", "Specify sorted flags [on:off]?")
-	result   = flag.String("result", "on", "Specify result [on:off]?")
-	date     = flag.String("date", "off", "Add output DATE in result [on:off]?")
+	recursively = flag.String("recursively", "on", `If this "off", not recursively search`)
+	sortFlag    = flag.String("sort", "off", "Specify sorted flags [on:off]?")
+	result      = flag.String("result", "on", "Specify result [on:off]?")
+	date        = flag.String("date", "off", "Add output DATE in result [on:off]?")
 )
 
 func init() {
@@ -43,7 +45,15 @@ func init() {
 	}
 	suffixList = strings.Split(*suffix, " ")
 	argsCheck()
+
+	if *fileListFlag != "" {
+		specifyFileList = append(specifyFileList, strings.Split(*fileListFlag, ",")...)
+	}
+	if *dirsFlag != "" {
+		specifyDirList = append(specifyDirList, strings.Split(*dirsFlag, ",")...)
+	}
 }
+
 // Checking after parsing flags
 func argsCheck() {
 	if len(flag.Args()) != 0 {
@@ -92,7 +102,9 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 			return true
 		}()
 		mux.Unlock()
-		if !ok { return }
+		if !ok {
+			return
+		}
 		// NOTE: ここまでロックするならスレッドを分ける意味は薄いかも
 
 		for _, x := range *infos {
@@ -108,8 +120,9 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	wg.Wait()
 	return infoCache
 }
+
 // for dirsCrawl and specify filepath
-func getInfos(dirname string) ([]os.FileInfo, error){
+func getInfos(dirname string) ([]os.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
 		return nil, fmt.Errorf("getInfos:%v", err)
@@ -233,24 +246,44 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 	return todoMap
 }
 
-// GophersProc is get todoMap data
+// GophersProc generate TODOMap!
+// TODO: switch from flag to specify directory or files
+// TODO: split filepathes
+// Generate file list
+// gatcha
+// TODO: (´・ω・`)
 func GophersProc(root string) (todoMap map[string][]string) {
-	// TODO: switch from flag to specify directory or files
 	infomap := new(map[string][]os.FileInfo)
-	/* 
-	// TODO: DODODO(´・ω・`)
-	switch {
-	case *fileSpecify != "":
-		filepath.Abs(*fileSpecify)
-	case *dirSpecify != "":
-	default:
-		*infomap = dirsCrawl(root)
-	}
-	*/
 
 	*infomap = dirsCrawl(root)
+
+	//	if *dirsFlag != "" {
+	//		for _, dirname := range specifyDirList {
+	//			if _, ok := infomap[dirname]; !ok {
+	//				// TODO:
+	//			}
+	//		}
+	//	}
+
 	todoMap = unlimitedGopherWorks(*infomap, suffixList, *keyword)
-	return
+
+	// TODO: file specify, Refactor to simple!
+	if *fileListFlag != "" {
+		for _, s := range specifyFileList {
+			filename, err := filepath.Abs(filepath.Clean(strings.TrimSpace(s)))
+			if err != nil {
+				log.Printf("GophersProc:%v", err)
+				break
+			}
+			if _, ok := todoMap[filename]; !ok {
+				todoList := gather(filename, *keyword)
+				if todoList != nil {
+					todoMap[filename] = todoList
+				}
+			}
+		}
+	}
+	return todoMap
 }
 
 // OutputTODOList is output crawl results
@@ -302,7 +335,7 @@ func OutputTODOList(todoMap map[string][]string) {
 	}
 }
 
-// TODO: エラーをログに出すのを関数単位じゃなくmainまでatを付けて持って帰りたい
+// TODO: エラーログの出し方考える
 // NOTE: logを受けるグローバルなチャンネル作ってロガーをinitでgo logger(){ for{log.Print(<-ch)} }してれば軽いかも?
 // NOTE: fmt.Errorf()でatを入れて返すとエラーのタイプが変わる
 func main() {

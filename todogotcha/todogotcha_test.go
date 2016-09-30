@@ -1,5 +1,10 @@
 package main
 
+
+// TODO: Modified flgas check!!!
+
+
+
 import (
 	"io/ioutil"
 	"log"
@@ -148,7 +153,7 @@ func TestDrisCrawl(t *testing.T) {
 
 func BenchmarkDirsCrawl(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = dirsCrawl(*root)
+		_ = dirsCrawl(*flags.root)
 	}
 }
 
@@ -336,8 +341,8 @@ func ExampleOutputTODOList() {
 	todoMap["/tmp/test"] = []string{"L1: test"}
 
 	// flgas
-	*sortFlag = "off"
-	*result = "off"
+	*flags.sort = "off"
+	*flags.result = "off"
 	OutputTODOList(todoMap)
 	// Unordered Output:
 	// /tmp/test
@@ -349,8 +354,8 @@ func ExampleOutputTODOList_sortON() {
 	todoMap["/a"] = []string{"L2: sort on"}
 
 	// flgas
-	*sortFlag = "on"
-	*result = "off"
+	*flags.sort = "on"
+	*flags.result = "off"
 	OutputTODOList(todoMap)
 	// Output:
 	// /a

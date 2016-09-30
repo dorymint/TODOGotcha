@@ -7,51 +7,91 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 )
 
-// TODO: Add flag specify search files
-// TODO: Add flag specify search directory, is do not recursively
+// Flags for pkg name sort
+type Flags struct {
+	root     *string
+	suffix   *string
+	keyword  *string
+	fileList *string
+	dirList  *string
 
-// flags
+	recursively *string
+	sort        *string
+	result      *string
+	date        *string
+
+	// TODO: Maby future delete this
+	proc *int
+}
+
 var (
-	root            = flag.String("root", "./", "Specify search root directory")
-	suffix          = flag.String("filetype", "go txt", `Specify target file types into the " "`)
-	suffixList      []string
-	keyword         = flag.String("keyword", "TODO:", "Specify gather target keyword")
-	fileListFlag    = flag.String("file", "", `Specify files path separator is ";" "/path/to/file1;/path/to/file2"`)
-	specifyFileList []string
-	dirsFlag        = flag.String("dir", "", "Specify directory, This want not recursively serach")
-	specifyDirList  []string
-	// TODO: Reconsider name for sortFlag
-	recursively = flag.String("recursively", "on", `If this "off", not recursively search`)
-	sortFlag    = flag.String("sort", "off", "Specify sorted flags [on:off]?")
-	result      = flag.String("result", "on", "Specify result [on:off]?")
-	date        = flag.String("date", "off", "Add output DATE in result [on:off]?")
+	flags = &Flags{
+		root:     flag.String("root", "./", "Specify recursively-search root directory"),
+		suffix:   flag.String("filetype", "go txt", `Specify target file types into the " "`),
+		keyword:  flag.String("keyword", "TODO: ", "Specify gather target keyword"),
+		fileList: flag.String("file", "", `Specify file list, separator is ";" "/path/to/file1;/path/to/file2"`),
+		dirList:  flag.String("dir", "", `Specify directory list, This want not recursively serach`),
+
+		recursively: flag.String("recursively", "on", `If this "off", not recursively search [on:off]?`),
+		sort:        flag.String("sort", "off", "Specify sorted flags [on:off]?"),
+		result:      flag.String("result", "on", "Specify result [on:off]?"),
+		date:        flag.String("date", "off", "Add output DATE in result [on:off]?"),
+
+		// TODO: Maby future delete this
+		proc: flag.Int("proc", 0, "Specify GOMAXPROCS"),
+	}
+
+	suffixList []string
+	fileList   []string
+	dirList    []string
 )
 
 func init() {
-	// TODO: GOMAXPROCS 今はコメントアウト
+	flag.Parse()
+
+	// TODO: GOMAXPROCS maby future delete this
+	runtime.GOMAXPROCS(*flags.proc)
 	//runtime.GOMAXPROCS(runtime.NumCPU())
 
-	var err error
-	flag.Parse()
-	*root, err = filepath.Abs(*root)
-	if err != nil {
-		log.Fatalf("init:%v", err)
+	if *flags.root != "" {
+		tmp, err := filepath.Abs(*flags.root)
+		if err != nil {
+			log.Fatalf("init:%v", err)
+		} else {
+			*flags.root = tmp
+		}
 	}
-	suffixList = strings.Split(*suffix, " ")
-	argsCheck()
 
-	if *fileListFlag != "" {
-		specifyFileList = append(specifyFileList, strings.Split(*fileListFlag, ",")...)
+	suffixList = strings.Split(*flags.suffix, " ")
+
+	// For specify files and dirs
+	pathClean := func(str *[]string, in *string) {
+		*str = append(*str, strings.Split(*in, ";")...)
+		for i, s := range *str {
+			cleanPath, err := filepath.Abs(filepath.Clean(strings.TrimSpace(s)))
+			if err != nil {
+				log.Printf("init:%v", err)
+				continue
+			}
+			(*str)[i] = cleanPath
+		}
 	}
-	if *dirsFlag != "" {
-		specifyDirList = append(specifyDirList, strings.Split(*dirsFlag, ",")...)
+	if *flags.fileList != "" {
+		pathClean(&fileList, flags.fileList)
 	}
+	if *flags.dirList != "" {
+		pathClean(&dirList, flags.dirList)
+	}
+
+	// Unknown flag check
+	argsCheck()
 }
 
 // Checking after parsing flags
@@ -70,7 +110,7 @@ func argsCheck() {
 }
 
 // Use wait group dirsCrawl
-// TODO: To simple
+// Recursively search
 func dirsCrawl(root string) map[string][]os.FileInfo {
 	// mux group
 	dirsCache := make(map[string]bool)
@@ -105,7 +145,7 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 		if !ok {
 			return
 		}
-		// NOTE: ここまでロックするならスレッドを分ける意味は薄いかも
+		// TODO: ここまでロックするならスレッドを分ける意味は薄いかも、再考する
 
 		for _, x := range *infos {
 			if x.IsDir() {
@@ -181,8 +221,7 @@ func gather(filename string, target string) (todoList []string) {
 // NOTE:
 // gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
-// TODO: Review
-// TODO: To simple
+// TODO: Review, To simple
 func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
@@ -246,40 +285,44 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 	return todoMap
 }
 
-// GophersProc generate TODOMap!
-// TODO: switch from flag to specify directory or files
-// TODO: split filepathes
-// Generate file list
-// gatcha
-// TODO: (´・ω・`)
+// GophersProc generate TODOMap from file list! gatcha!!
+// TODO: Refactor, To simple!
 func GophersProc(root string) (todoMap map[string][]string) {
-	infomap := new(map[string][]os.FileInfo)
+	infoMap := make(map[string][]os.FileInfo)
 
-	*infomap = dirsCrawl(root)
+	// For recursively switch
+	if *flags.recursively == "on" {
+		infoMap = dirsCrawl(root)
+	} else {
+		infos, err := getInfos(root)
+		if err != nil {
+			log.Printf("GophersProc:%v", err)
+		} else {
+			infoMap[root] = infos
+		}
+	}
 
-	//	if *dirsFlag != "" {
-	//		for _, dirname := range specifyDirList {
-	//			if _, ok := infomap[dirname]; !ok {
-	//				// TODO:
-	//			}
-	//		}
-	//	}
-
-	todoMap = unlimitedGopherWorks(*infomap, suffixList, *keyword)
-
-	// TODO: file specify, Refactor to simple!
-	if *fileListFlag != "" {
-		for _, s := range specifyFileList {
-			filename, err := filepath.Abs(filepath.Clean(strings.TrimSpace(s)))
+	// For specify dirs
+	for _, dirname := range dirList {
+		if _, ok := infoMap[dirname]; !ok {
+			infos, err := getInfos(dirname)
 			if err != nil {
 				log.Printf("GophersProc:%v", err)
-				break
+				continue
 			}
-			if _, ok := todoMap[filename]; !ok {
-				todoList := gather(filename, *keyword)
-				if todoList != nil {
-					todoMap[filename] = todoList
-				}
+			infoMap[dirname] = infos
+		}
+	}
+
+	// Generate todo list from infoMap
+	todoMap = unlimitedGopherWorks(infoMap, suffixList, *flags.keyword)
+
+	// For specify files
+	for _, s := range fileList {
+		if _, ok := todoMap[s]; !ok {
+			todoList := gather(s, *flags.keyword)
+			if todoList != nil {
+				todoMap[s] = todoList
 			}
 		}
 	}
@@ -289,8 +332,8 @@ func GophersProc(root string) (todoMap map[string][]string) {
 // OutputTODOList is output crawl results
 // TODO: Refactor
 func OutputTODOList(todoMap map[string][]string) {
-	// TODO: To lighten
-	if *sortFlag == "on" {
+	// For sort
+	if *flags.sort == "on" {
 		// Optional
 		var filenames []string
 		for filename := range todoMap {
@@ -317,18 +360,26 @@ func OutputTODOList(todoMap map[string][]string) {
 		}
 	}
 
-	if *result == "on" {
+	if *flags.result == "on" {
 		fmt.Println("-----| RESULT |-----")
 		fmt.Printf("%v files found have the keyword\n\n", len(todoMap))
 
 		fmt.Println("ALL FLAGS")
-		fmt.Printf("root=%q\n", *root)
-		fmt.Printf("filetype=%q\n", *suffix)
-		fmt.Printf("keywrod=%q\n", *keyword)
-		fmt.Printf("sort=%q\n", *sortFlag)
-		fmt.Printf("result=%q\n", *result)
-		fmt.Printf("date=%q\n", *date)
-		if *date == "on" {
+		fmt.Printf("root=%q\n", *flags.root)
+		fmt.Printf("filetype=%q\n", *flags.suffix)
+		fmt.Printf("keywrod=%q\n", *flags.keyword)
+
+		fmt.Printf("sort=%v\n", *flags.sort)
+		fmt.Printf("srecursively=%v\n", *flags.recursively)
+		fmt.Printf("result=%v\n", *flags.result)
+		fmt.Printf("date=%v\n", *flags.date)
+
+		fmt.Printf("dirList=%q\n", dirList)
+		fmt.Printf("fileList=%q\n", fileList)
+
+		// TODO: Maybe future delete this
+		fmt.Printf("proc=%v\n", runtime.GOMAXPROCS(0))
+		if *flags.date == "on" {
 			fmt.Print("\n")
 			fmt.Printf("DATE:%v\n", time.Now())
 		}
@@ -339,6 +390,6 @@ func OutputTODOList(todoMap map[string][]string) {
 // NOTE: logを受けるグローバルなチャンネル作ってロガーをinitでgo logger(){ for{log.Print(<-ch)} }してれば軽いかも?
 // NOTE: fmt.Errorf()でatを入れて返すとエラーのタイプが変わる
 func main() {
-	todoMap := GophersProc(*root)
+	todoMap := GophersProc(*flags.root)
 	OutputTODOList(todoMap)
 }

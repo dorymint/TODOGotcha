@@ -8,22 +8,8 @@ Show the "TODO List"
 
 ## Example
 ---
-Output from ```todogotcha -keyword "TODO: "```  
 ```
-/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha.go
-L22:Reconsider name for sortFlag
-L28:今はコメントアウト
-L57:To simple
-L85:Fix from bad implementation
-L166:Review
-L167:To simple
-L208:それでも気になるので、速度を落とさずいい方法があれば修正する
-L235:Refactor
-L237:To lighten
-L246:Fix to Duplication
-L277:エラーをログに出すのを関数単位じゃなくmainまでatを付けて持って帰りたい
-
-/home/dory/gowork/src/github.com/dory/go-todogotcha/todogotcha/todogotcha_test.go
+/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha/todogotcha_test.go
 L89:To simple! delete this?
 L106:To simple!!
 L211:Test
@@ -36,16 +22,31 @@ L315:Add another case
 L327:Add another case
 L333:Add another case
 
+/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha/todogotcha.go
+L37:", "Specify gather target keyword"),
+L58:GOMAXPROCS いらないかも取り敢えず指定できるように
+L220:Review
+L221:To simple
+L227:出来れば (descriptor limits / 2) で値を決めたい
+L265:それでも気になるので、速度を落とさずいい方法があれば修正する
+L286:Refactor, To simple!
+L330:Refactor
+L341:Fix to Duplication
+L350:Fix to Duplication
+L378:エラーログの出し方考える
+
 -----| RESULT |-----
 2 files found have the keyword
 
 ALL FLAGS
-root="/home/dory/gowork/src/github.com/dory/go-todogotcha"
+root="/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha"
 filetype="go txt"
 keywrod="TODO: "
 sort="off"
 result="on"
+date="off"
 ```
+Output from ```todogotcha```  
 
 ## Installation
 ---
@@ -64,6 +65,7 @@ If you need output to file
 ```
 todogotcha > ./TODOList.log
 ```
+
 ## Option
 ---
 **Show the flags and default parameter**
@@ -71,27 +73,32 @@ todogotcha > ./TODOList.log
 todogotcha -h
 ```
 
-**Defaults options**
- - filetype "go txt"
- - keyword "TODO:"
- - root "./"
- - sort "off"
- - result "on"
+**Default option**
+ - root     ./
+  - Search root
+ - filetype   "go txt"
+  - Specify filetype
+ - keyword  "TODO: "
+  - Specify keyword
+ - fileList ""
+  - Specify targetr file list
+ - dirList  ""
+  - Specify search target directory
+
+ - result      on
+ - recursively on
+ - sort        off
+ - date        off
+ - proc        0
+  - set of GOMAXPROCS
+
 
 **This example is changed default option**
 ```
-todogotcha -root "../" \
+todogotcha -root "../../" \
           -filetype "go c cc cpp txt py" \
-          -keyword "NOTE: "
-```
-
-```
--root "<Specify search root directory>"
--filetype "<Target file types list>"
--keyword "<Gather target word>"
-
--sort="on" or "off"
--result="on" or "off"
+          -keyword "NOTE: " \
+          -date on
 ```
 
 ## Licence

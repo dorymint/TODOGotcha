@@ -80,8 +80,6 @@ todogotcha > ./TODOList.log
 todogotcha -h
 ```
 
-**Option**
-
 | Flags | Description | Default |
 | :---- | :---------- | :------ |
 | root  | Search root | -root ./ |

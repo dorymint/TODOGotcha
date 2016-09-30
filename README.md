@@ -23,28 +23,35 @@ L327:Add another case
 L333:Add another case
 
 /home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha/todogotcha.go
-L37:", "Specify gather target keyword"),
-L58:GOMAXPROCS いらないかも取り敢えず指定できるように
-L220:Review
-L221:To simple
-L227:出来れば (descriptor limits / 2) で値を決めたい
-L265:それでも気になるので、速度を落とさずいい方法があれば修正する
-L286:Refactor, To simple!
-L330:Refactor
-L341:Fix to Duplication
-L350:Fix to Duplication
-L378:エラーログの出し方考える
+L30:Maby future delete this
+L38:", "Specify gather target keyword"),
+L47:Maby future delete this
+L59:GOMAXPROCS maby future delete this
+L148:ここまでロックするならスレッドを分ける意味は薄いかも、再考する
+L224:Review, To simple
+L230:出来れば (descriptor limits / 2) で値を決めたい
+L268:それでも気になるので、速度を落とさずいい方法があれば修正する
+L289:Refactor, To simple!
+L333:Refactor
+L344:Fix to Duplication
+L353:Fix to Duplication
+L380:Maybe future delete this
+L389:エラーログの出し方考える
 
 -----| RESULT |-----
 2 files found have the keyword
 
 ALL FLAGS
-root="/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha"
+root="/home/dory/gowork/src/github.com/dory/go-TODOGotcha"
 filetype="go txt"
 keywrod="TODO: "
-sort="off"
-result="on"
-date="off"
+sort=off
+srecursively=on
+result=on
+date=off
+dirList=[]
+fileList=[]
+proc=4
 ```
 Output from ```todogotcha```  
 
@@ -73,17 +80,17 @@ todogotcha > ./TODOList.log
 todogotcha -h
 ```
 
-**Default option**
+**Option**
 
 | Flags | Description | Default |
-| :---: | :---------- | :------ |
+| :---- | :---------- | :------ |
 | root  | Search root | -root ./ |
 | filetype | Specify target filetypes | -filetype "go txt" |
 | keyword | Specify keyword | -keyword "TODO: " |
 | file | Specify target file list | -file "" |
-| dir | Specify directory list | -dir "" |
+| dir | Specify directory list, is not recursively | -dir "" |
 | result | Specify result [on:off]? | -result on |
-| recursively | recursively search [on:off]? | -recursively on |
+| recursively | Recursively search [on:off]? | -recursively on |
 | sort | Sort for directory name [on:off]? | -sort off |
 | date | Add output DATE in result [on:off]? | -date off |
 | proc | Specify GOMAXPROCS | automatic setting |
@@ -91,9 +98,12 @@ todogotcha -h
 **This example is changed default option**
 ```
 todogotcha -root "../../" \
-          -filetype "go c cc cpp txt py" \
           -keyword "NOTE: " \
-          -date on
+          -filetype "go c cc cpp txt py" \
+          -dir "path/to/dir1/ ; path/to/dir2/" \
+          -file "path/to/file1 ; path/to/file2" \
+          -date on \
+          -proc 2
 ```
 
 ## Licence

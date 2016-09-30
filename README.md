@@ -83,7 +83,7 @@ todogotcha -h
 | file | Specify target file list | -file "" |
 | dir | Specify directory list | -dir "" |
 | result | Specify result [on:off]? | -result on |
-| recursively | If this "off", not recursively search | -recursively on |
+| recursively | recursively search [on:off]? | -recursively on |
 | sort | Sort for directory name [on:off]? | -sort off |
 | date | Add output DATE in result [on:off]? | -date off |
 | proc | Specify GOMAXPROCS | automatic setting |

@@ -74,30 +74,19 @@ todogotcha -h
 ```
 
 **Default option**
- - root     ./
-  - Search root
- - filetype   "go txt"
-  - Specify filetype
- - keyword  "TODO: "
-  - Specify keyword
- - fileList ""
-  - Specify targetr file list
- - dirList  ""
-  - Specify search target directory
-  
-  md table test    
-  
-  | test | test | test |
-  | --- | --- | --- |
-  | he | kd | kj |
 
- - result      on
- - recursively on
- - sort        off
- - date        off
- - proc        0
-  - set of GOMAXPROCS
-
+| Flags | Description | Default |
+| :---: | :---------- | :------ |
+| root  | Search root | -root ./ |
+| filetype | Specify target filetypes | -filetype "go txt" |
+| keyword | Specify keyword | -keyword "TODO: " |
+| file | Specify target file list | -file "" |
+| dir | Specify directory list | -dir "" |
+| result | Specify result [on:off]? | -result on |
+| recursively | If this "off", not recursively search | -recursively on |
+| sort | Sort for directory name [on:off]? | -sort off |
+| date | Add output DATE in result [on:off]? | -date off |
+| proc | Specify GOMAXPROCS | automatic setting |
 
 **This example is changed default option**
 ```

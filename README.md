@@ -84,6 +84,11 @@ todogotcha -h
   - Specify targetr file list
  - dirList  ""
   - Specify search target directory
+  
+  md table test 
+  | test | test | test |
+  | --- | --- | --- |
+  | he | kd | kj |
 
  - result      on
  - recursively on

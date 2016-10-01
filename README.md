@@ -98,8 +98,8 @@ todogotcha -h
 todogotcha -root "../../" \
           -keyword "NOTE: " \
           -filetype "go c cc cpp txt py" \
-          -dir "path/to/dir1/ ; path/to/dir2/" \
-          -file "path/to/file1 ; path/to/file2" \
+          -dir "./path/to/dir1/;../path/to/dir2/" \
+          -file "./path/to/file1;../path/to/file2" \
           -date on \
           -proc 2
 ```

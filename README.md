@@ -8,51 +8,7 @@ Show the "TODO List"
 
 ## Example
 ---
-```
-/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha/todogotcha_test.go
-L89:To simple! delete this?
-L106:To simple!!
-L211:Test
-L233:TODO: TODO:
-L234:2line
-L237:TODO:",
-L267:add test case
-L312:Create test data and run
-L315:Add another case
-L327:Add another case
-L333:Add another case
-
-/home/dory/gowork/src/github.com/dory/go-TODOGotcha/todogotcha/todogotcha.go
-L30:Maby future delete this
-L38:", "Specify gather target keyword"),
-L47:Maby future delete this
-L59:GOMAXPROCS maby future delete this
-L148:ここまでロックするならスレッドを分ける意味は薄いかも、再考する
-L224:Review, To simple
-L230:出来れば (descriptor limits / 2) で値を決めたい
-L268:それでも気になるので、速度を落とさずいい方法があれば修正する
-L289:Refactor, To simple!
-L333:Refactor
-L344:Fix to Duplication
-L353:Fix to Duplication
-L380:Maybe future delete this
-L389:エラーログの出し方考える
-
------| RESULT |-----
-2 files found have the keyword
-
-ALL FLAGS
-root="/home/dory/gowork/src/github.com/dory/go-TODOGotcha"
-filetype="go txt"
-keywrod="TODO: "
-sort=off
-recursively=on
-result=on
-date=off
-dirList=[]
-fileList=[]
-proc=4
-```
+![gothca](./gotcha.png "gotcha")  
 Output from ```todogotcha```  
 
 ## Installation

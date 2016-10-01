@@ -365,13 +365,13 @@ func OutputTODOList(todoMap map[string][]string) {
 		fmt.Printf("%v files found have the keyword\n\n", len(todoMap))
 
 		fmt.Println("ALL FLAGS")
-		fmt.Printf("root=%q\n", *flags.root)
-		fmt.Printf("filetype=%q\n", *flags.suffix)
-		fmt.Printf("keywrod=%q\n", *flags.keyword)
-
-		fmt.Printf("sort=%v\n", *flags.sort)
-		fmt.Printf("recursively=%v\n", *flags.recursively)
 		fmt.Printf("result=%v\n", *flags.result)
+		fmt.Printf("root=%q\n", *flags.root)
+		fmt.Printf("keywrod=%q\n", *flags.keyword)
+		fmt.Printf("filetype=%q\n", *flags.suffix)
+
+		fmt.Printf("recursively=%v\n", *flags.recursively)
+		fmt.Printf("sort=%v\n", *flags.sort)
 		fmt.Printf("date=%v\n", *flags.date)
 
 		fmt.Printf("dirList=%q\n", dirList)
@@ -379,6 +379,7 @@ func OutputTODOList(todoMap map[string][]string) {
 
 		// TODO: Maybe future delete this
 		fmt.Printf("proc=%v\n", runtime.GOMAXPROCS(0))
+
 		if *flags.date == "on" {
 			fmt.Print("\n")
 			fmt.Printf("DATE:%v\n", time.Now())

@@ -27,7 +27,7 @@ type Flags struct {
 	result      *string
 	date        *string
 
-	// TODO: Maby future delete this
+	// TODO: Maybe future delete this
 	proc *int
 }
 
@@ -44,7 +44,7 @@ var (
 		result:      flag.String("result", "on", "Specify result [on:off]?"),
 		date:        flag.String("date", "off", "Add output DATE in result [on:off]?"),
 
-		// TODO: Maby future delete this
+		// TODO: Maybe future delete this
 		proc: flag.Int("proc", 0, "Specify GOMAXPROCS"),
 	}
 
@@ -56,7 +56,7 @@ var (
 func init() {
 	flag.Parse()
 
-	// TODO: GOMAXPROCS maby future delete this
+	// TODO: GOMAXPROCS maybe future delete this
 	runtime.GOMAXPROCS(*flags.proc)
 	//runtime.GOMAXPROCS(runtime.NumCPU())
 
@@ -229,7 +229,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 	// NOTE: Countermove "too many open files"!!
 	// TODO: 出来れば (descriptor limits / 2) で値を決めたい
 	// 環境依存のリミットを取得する方法を探す
-	gophersLimit := 512 // NOTE: This Limit is requir (Limit < file descriptor limits)
+	gophersLimit := 512 // NOTE: This Limit is require (Limit < file descriptor limits)
 	var gophersLimiter int
 
 	mux := new(sync.Mutex)
@@ -370,7 +370,7 @@ func OutputTODOList(todoMap map[string][]string) {
 		fmt.Printf("keywrod=%q\n", *flags.keyword)
 
 		fmt.Printf("sort=%v\n", *flags.sort)
-		fmt.Printf("srecursively=%v\n", *flags.recursively)
+		fmt.Printf("recursively=%v\n", *flags.recursively)
 		fmt.Printf("result=%v\n", *flags.result)
 		fmt.Printf("date=%v\n", *flags.date)
 

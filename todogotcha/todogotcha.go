@@ -15,6 +15,7 @@ import (
 )
 
 // TODO: Add specify output to file
+// TODO: Add separator for fileList and dirList in falgs
 
 // Flags for pkg name sort
 type Flags struct {

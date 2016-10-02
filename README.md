@@ -38,15 +38,15 @@ todogotcha -h
 
 | Flags | Description | Default |
 | :---- | :---------- | :------ |
-| root  | Search root | -root ./ |
-| filetype | Specify target filetypes | -filetype "go txt" |
-| keyword | Specify keyword | -keyword "TODO: " |
-| file | Specify target file list | -file "" |
-| dir | Specify directory list, is not recursively | -dir "" |
+| root  | Search root | ./ |
+| filetype | Specify target filetypes | "go txt" |
+| keyword | Specify keyword | "TODO: " |
+| file | Specify target file list | "" |
+| dir | Specify directory list, is not recursively | "" |
 | result | Specify result [on:off]? | -result on |
-| recursively | Recursively search [on:off]? | -recursively on |
-| sort | Sort for directory name [on:off]? | -sort off |
-| date | Add output DATE in result [on:off]? | -date off |
+| recursively | Recursively search [on:off]? | on |
+| sort | Sort for directory name [on:off]? | off |
+| date | Add output DATE in result [on:off]? | off |
 | proc | Specify GOMAXPROCS | automatic setting |
 
 **This example is changed default option**

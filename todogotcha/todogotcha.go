@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+// TODO: Add specify output to file
+
 // Flags for pkg name sort
 type Flags struct {
 	root     *string
@@ -44,7 +46,6 @@ var (
 		result:      flag.String("result", "on", "Specify result [on:off]?"),
 		date:        flag.String("date", "off", "Add output DATE in result [on:off]?"),
 
-		// TODO: Maybe future delete this
 		proc: flag.Int("proc", 0, "Specify GOMAXPROCS"),
 	}
 
@@ -56,9 +57,7 @@ var (
 func init() {
 	flag.Parse()
 
-	// TODO: GOMAXPROCS maybe future delete this
 	runtime.GOMAXPROCS(*flags.proc)
-	//runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if *flags.root != "" {
 		tmp, err := filepath.Abs(*flags.root)
@@ -145,7 +144,7 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 		if !ok {
 			return
 		}
-		// TODO: ここまでロックするならスレッドを分ける意味は薄いかも、再考する
+		// NOTE: ここまでロックするならスレッドを分ける意味は薄いかも、再考する
 
 		for _, x := range *infos {
 			if x.IsDir() {
@@ -161,7 +160,7 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	return infoCache
 }
 
-// for dirsCrawl and specify filepath
+// For dirsCrawl and specify filepath
 func getInfos(dirname string) ([]os.FileInfo, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
@@ -189,7 +188,6 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 	return false
 }
 
-// specify filename and target, Gather target(TODOs), return todoList.
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
 func gather(filename string, target string) (todoList []string) {
@@ -218,8 +216,7 @@ func gather(filename string, target string) (todoList []string) {
 }
 
 // Use flag keyword
-// NOTE:
-// gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
+// NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 // TODO: Review, To simple
 func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string) (todoMap map[string][]string) {
@@ -228,14 +225,14 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 
 	// NOTE: Countermove "too many open files"!!
 	// TODO: 出来れば (descriptor limits / 2) で値を決めたい
-	// 環境依存のリミットを取得する方法を探す
+	// 環境依存のリミットを取得する良い方法を見つけてない(´・ω・`)
 	gophersLimit := 512 // NOTE: This Limit is require (Limit < file descriptor limits)
 	var gophersLimiter int
 
 	mux := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 
-	// call gather() and append in todoMap
+	// Call gather() and append in todoMap
 	worker := func(filepath string) {
 		defer wg.Done()
 		defer func() {
@@ -262,8 +259,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 
 				go worker(filepath.Join(dirname, info.Name()))
 
-				// NOTE:
-				// Countermove "too many open files"
+				// NOTE: Countermove "too many open files"
 				// gophersLimiterの読み出しで値が不確定だけどこれは大体合ってれば問題ないはず
 				// TODO: それでも気になるので、速度を落とさずいい方法があれば修正する
 				if gophersLimiter > gophersLimit/2 {
@@ -377,7 +373,6 @@ func OutputTODOList(todoMap map[string][]string) {
 		fmt.Printf("dirList=%q\n", dirList)
 		fmt.Printf("fileList=%q\n", fileList)
 
-		// TODO: Maybe future delete this
 		fmt.Printf("proc=%v\n", runtime.GOMAXPROCS(0))
 
 		if *flags.date == "on" {
@@ -387,7 +382,7 @@ func OutputTODOList(todoMap map[string][]string) {
 	}
 }
 
-// TODO: エラーログの出し方考える
+// TODO: エラーログの出し方を考えたい
 // NOTE: logを受けるグローバルなチャンネル作ってロガーをinitでgo logger(){ for{log.Print(<-ch)} }してれば軽いかも?
 // NOTE: fmt.Errorf()でatを入れて返すとエラーのタイプが変わる
 func main() {

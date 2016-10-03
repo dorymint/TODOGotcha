@@ -62,7 +62,7 @@ func makeTempDirs() (tmproot string) {
 		// create tempfiles
 		for _, y := range TmpFilesMap[x] {
 			filepath := filepath.Join(dirpath, y)
-			if err := ioutil.WriteFile(filepath, nil, 0700); err != nil {
+			if err := ioutil.WriteFile(filepath, nil, 0600); err != nil {
 				log.Fatal(err)
 			}
 		}

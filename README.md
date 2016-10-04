@@ -26,7 +26,7 @@ todogotcha
 
 If you need output to file
 ```
-todogotcha > ./TODOList.log
+todogotcha -output "./TODOList.log"
 ```
 
 ## Option
@@ -43,8 +43,11 @@ todogotcha -h
 | keyword | Specify keyword | "TODO: " |
 | file | Specify target file list | "" |
 | dir | Specify directory list, is not recursively | "" |
-| result | Specify result [on:off]? | -result on |
+| separator | Specify separator for directoris and fiels | ";" |
+| output | Specify output file | "" |
+| force | Ignore override confirm [on:off]? | off |
 | recursively | Recursively search [on:off]? | on |
+| result | Specify result [on:off]? | -result on |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add output DATE in result [on:off]? | off |
 | proc | Specify GOMAXPROCS | automatic setting |

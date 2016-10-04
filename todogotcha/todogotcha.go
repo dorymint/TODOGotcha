@@ -89,7 +89,9 @@ var (
 // TODO: To simple!
 // フラグ処理を入れてみたけどinitである必要がない
 func init() {
+	// Parse and Unknown flag check
 	flag.Parse()
+	argsCheck()
 
 	runtime.GOMAXPROCS(*flags.proc)
 
@@ -147,9 +149,6 @@ func init() {
 	if *flags.dirList != "" {
 		pathClean(&dirList, flags.dirList)
 	}
-
-	// Unknown flag check
-	argsCheck()
 }
 
 // Checking after parsing flags

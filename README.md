@@ -47,7 +47,7 @@ todogotcha -h
 | output | Specify output file | "" |
 | force | Ignore override confirm [on:off]? | off |
 | recursively | Recursively search [on:off]? | on |
-| result | Specify result [on:off]? | -result on |
+| result | Specify result [on:off]? | on |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add output DATE in result [on:off]? | off |
 | proc | Specify GOMAXPROCS | automatic setting |

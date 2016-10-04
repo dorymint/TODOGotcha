@@ -43,7 +43,7 @@ todogotcha -h
 | keyword | Specify keyword | "TODO: " |
 | file | Specify target file list | "" |
 | dir | Specify directory list, is not recursively | "" |
-| separator | Specify separator for directoris and fiels | ; |
+| separator | Specify separator for directoris and files | ; |
 | output | Specify output file | "" |
 | force | Ignore override confirm [on:off]? | off |
 | recursively | Recursively search [on:off]? | on |

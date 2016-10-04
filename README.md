@@ -3,8 +3,8 @@
 ガッチャ!  
 
 Search from current directory recursively  
-Create "TODO List" from search files  
-Show the "TODO List"  
+Create TODO list from search files  
+Show the TODO list  
 
 ## Example
 ---
@@ -43,7 +43,7 @@ todogotcha -h
 | keyword | Specify keyword | "TODO: " |
 | file | Specify target file list | "" |
 | dir | Specify directory list, is not recursively | "" |
-| separator | Specify separator for directoris and fiels | ";" |
+| separator | Specify separator for directoris and fiels | ; |
 | output | Specify output file | "" |
 | force | Ignore override confirm [on:off]? | off |
 | recursively | Recursively search [on:off]? | on |

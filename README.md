@@ -26,7 +26,7 @@ todogotcha
 
 If you need output to file
 ```
-todogotcha -output "./TODOList.log"
+todogotcha -output "./path/to/file"
 ```
 
 ## Option

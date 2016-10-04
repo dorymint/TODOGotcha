@@ -112,17 +112,17 @@ func init() {
 			if !ask(fmt.Sprintf("Override? %v", cleanpath)) {
 				os.Exit(1)
 			}
-			// touch
-			tmp, err := os.Create(cleanpath)
-			if err != nil {
-				log.Fatalf("init:%v", err)
-			}
-			defer func() {
-				if errclose := tmp.Close(); errclose != nil {
-					log.Fatalf("init:%v", errclose)
-				}
-			}()
 		}
+		// touch
+		tmp, err := os.Create(cleanpath)
+		if err != nil {
+			log.Fatalf("init:%v", err)
+		}
+		defer func() {
+			if errclose := tmp.Close(); errclose != nil {
+				log.Fatalf("init:%v", errclose)
+			}
+		}()
 		outputFilePath = cleanpath
 	}
 

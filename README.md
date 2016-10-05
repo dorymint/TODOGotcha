@@ -7,6 +7,7 @@ Create TODO list from search files
 Show the TODO list  
 
 **NEXT BRANCH**
+Add flag, Specify number of lines
 
 ## Example
 ---

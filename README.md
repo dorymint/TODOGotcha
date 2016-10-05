@@ -6,6 +6,8 @@ Search from current directory recursively
 Create TODO list from search files  
 Show the TODO list  
 
+**NEXT BRANCH**
+
 ## Example
 ---
 ![gothca](./gotcha.png "gotcha")  
@@ -50,6 +52,7 @@ todogotcha -h
 | result | Specify result [on:off]? | on |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add output DATE in result [on:off]? | off |
+| line | Specify number of line | 1 |
 | proc | Specify GOMAXPROCS | automatic setting |
 
 **This example is changed default option**

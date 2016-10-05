@@ -32,6 +32,8 @@ type Flags struct {
 	sort   *string
 	date   *string
 
+	// TODO: Reconsider this. need?
+	lines *uint
 	// TODO: Specify GOMAXPROCS. Maybe future delete this
 	proc *int
 }
@@ -55,6 +57,9 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("fileList=%q\n", *f.fileList)
 	tmp += fmt.Sprintf("separator=%q\n", *f.separator)
 
+
+	// TODO: Reconsider line
+	tmp += fmt.Sprintf("line=%v\n", *flags.lines)
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
 	return tmp
 }
@@ -77,6 +82,8 @@ var (
 		sort:        flag.String("sort", "off", "Specify sorted flags [on:off]?"),
 		date:        flag.String("date", "off", "Add output DATE in result [on:off]?"),
 
+		// TODO: Reconsider line
+		lines: flag.Uint("line", 1, "Specify number of lines"),
 		proc: flag.Int("proc", 0, "Specify GOMAXPROCS"),
 	}
 
@@ -94,6 +101,12 @@ func init() {
 	argsCheck()
 
 	runtime.GOMAXPROCS(*flags.proc)
+
+	// TODO: Reconsider line
+	if *flags.lines == 0 {
+		fmt.Fprintln(os.Stderr, "Require 1 line or more")
+		os.Exit(1)
+	}
 
 	if *flags.root != "" {
 		tmp, err := filepath.Abs(*flags.root)
@@ -267,7 +280,7 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
-func gather(filename string, target string) (todoList []string) {
+func gather(filename string, target string, targetLines uint) (todoList []string) {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("gather:%v", err)
@@ -279,14 +292,26 @@ func gather(filename string, target string) (todoList []string) {
 		}
 	}()
 
+	// TODO: Reconsider this. Need targetLine?
 	sc := bufio.NewScanner(f)
+	tmpLineCount := uint(1)
 	for i := uint(1); sc.Scan(); i++ {
 		if err := sc.Err(); err != nil {
 			log.Printf("gather:%v", err)
 			return nil
 		}
-		if index := strings.Index(sc.Text(), target); index != -1 {
-			todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
+		if tmpLineCount == 1 {
+			if index := strings.Index(sc.Text(), target); index != -1 {
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
+				tmpLineCount++
+			}
+		} else if tmpLineCount <= targetLines {
+			// TODO: (´・ω・`)つ [refactor]
+			//todoList = append(todoList, fmt.Sprintf(" %s:%s", strings.Repeat(" ", len(fmt.Sprintf("%v", i))),  sc.Text()))
+			todoList = append(todoList, fmt.Sprintf(" %v:%s", i,  sc.Text()))
+			tmpLineCount++
+		} else {
+			tmpLineCount = 1
 		}
 	}
 	return todoList
@@ -295,7 +320,7 @@ func gather(filename string, target string) (todoList []string) {
 // NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 // TODO: Review, To simple
-func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string) (todoMap map[string][]string) {
+func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string, lines uint) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
 
@@ -317,7 +342,8 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 			mux.Unlock()
 		}()
 
-		todoList := gather(filepath, keyword)
+		// TODO: Reconsider lines
+		todoList := gather(filepath, keyword, lines)
 		if todoList != nil {
 			mux.Lock()
 			todoMap[filepath] = todoList
@@ -387,12 +413,13 @@ func GophersProc(root string) (todoMap map[string][]string) {
 	}
 
 	// Generate todo list from infoMap
-	todoMap = unlimitedGopherWorks(infoMap, suffixList, *flags.keyword)
+	todoMap = unlimitedGopherWorks(infoMap, suffixList, *flags.keyword, *flags.lines)
 
 	// For specify files
 	for _, s := range fileList {
 		if _, ok := todoMap[s]; !ok {
-			todoList := gather(s, *flags.keyword)
+			// TODO: Reconsider lines
+			todoList := gather(s, *flags.keyword, *flags.lines)
 			if todoList != nil {
 				todoMap[s] = todoList
 			}
@@ -458,7 +485,7 @@ func OutputTODOList(todoMap map[string][]string) {
 	}
 }
 
-// TODO: エラーログの出し方を考えたい
+// TODO: エラーログの吐き方考えたい
 // NOTE: flagに直接触れるのは init, main, データトップのGophersProc, 表示トップのOutputTODOList, に限定してみる
 func main() {
 	todoMap := GophersProc(*flags.root)

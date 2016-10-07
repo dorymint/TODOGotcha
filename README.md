@@ -46,16 +46,16 @@ todogotcha -h
 
 | Flags | Description | Default |
 | :---- | :---------- | :------ |
-| root  | Search root | ./ |
+| root  | Search root directory | ./ |
 | filetype | Specify target filetypes | "go txt" |
 | keyword | Specify keyword | "TODO: " |
 | file | Specify target file list | "" |
 | dir | Specify directory list, is not recursively | "" |
 | separator | Specify separator for directoris and files | ; |
-| output | Specify output file | "" |
+| output | Specify output filepath | "" |
 | force | Ignore override confirm [on:off]? | off |
 | recursively | Recursively search from root [on:off]? | on |
-| result | Specify result [on:off]? | on |
+| result | Specify result for flags state [on:off]? | off |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add date [on:off]? | off |
 | trim | Trim the keyword for output [on:off]? | on |

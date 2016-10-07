@@ -1,5 +1,17 @@
 package main
 
+// TODO: エラーログの吐き方考えたい, error buffer 作って溜めてリザルトで吐く?
+//     : 複数のgoroutineが同じロガーに同時にアクセスしてもlogがよろしくやってくれるのか調べてない
+//     : 普通に考えたら裏で常に走りながらチャンネルで待ち受けてそうだけどどうだろう
+//     : pkgのsrcみると大丈夫そう
+// NOTE: flagに直接触れるのは init, main, に限定する
+//     : 出来るだけファイル一枚で書いてみる
+//     : ファイル一枚に詰めながら処理は独立するように気をつける
+//     : initでフラグとstickyなデータの初期化を任せてflagのエラー処理を省く
+//     : goroutineいっぱい使ってみたい
+
+// TODO: Refactor, フラグにくっついてるflag.dataの初期化をinitからレシーバに切り出す
+
 import (
 	"bufio"
 	"flag"
@@ -97,36 +109,36 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
 	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
 	return tmp
+	// NOTE: string(``)と+""でまとめてもいいけどわかりやすさと変更のためにこのままにする
 }
 
-var (
-	flags = &Flags{
-		root:    flag.String("root", "./", "Specify recursively-search root directory"),
-		suffix:  flag.String("filetype", "go txt", `Specify target file types into the " "`),
-		keyword: flag.String("keyword", "TODO: ", "Specify gather target keyword"),
+// NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
+var flags = &Flags{
+	root:    flag.String("root", "./", "Specify recursively-search root directory"),
+	suffix:  flag.String("filetype", "go txt", `Specify target file types into the " "`),
+	keyword: flag.String("keyword", "TODO: ", "Specify gather target keyword"),
 
-		fileList:  flag.String("file", "", `Specify file list`),
-		dirList:   flag.String("dir", "", `Specify directory list, This want not recursively serach`),
-		separator: flag.String("separator", ";", "Specify separator for specify directories and files lists"),
+	fileList:  flag.String("file", "", `Specify file list`),
+	dirList:   flag.String("dir", "", `Specify directory list, This want not recursively serach`),
+	separator: flag.String("separator", ";", "Specify separator for specify directories and files lists"),
 
-		output: flag.String("output", "", "Specify output file"),
-		force:  flag.String("force", "off", "Ignore override confirm [on:off]?"),
+	output: flag.String("output", "", "Specify output file"),
+	force:  flag.String("force", "off", "Ignore override confirm [on:off]?"),
 
-		recursively: flag.String("recursively", "on", `If this "off", not recursively search from root [on:off]?`),
-		result:      flag.String("result", "off", "Specify result [on:off]?"),
-		sort:        flag.String("sort", "off", "Specify sort [on:off]?"),
-		date:        flag.String("date", "off", "Add output date [on:off]?"),
+	recursively: flag.String("recursively", "on", `If this "off", not recursively search from root [on:off]?`),
+	result:      flag.String("result", "off", "Specify result [on:off]?"),
+	sort:        flag.String("sort", "off", "Specify sort [on:off]?"),
+	date:        flag.String("date", "off", "Add output date [on:off]?"),
 
-		trim:  flag.String("trim", "on", "Specify trim of keyword for output [on:off]?"),
-		lines: flag.Uint("line", 1, "Specify number of lines for gather"),
+	trim:  flag.String("trim", "on", "Specify trim of keyword for output [on:off]?"),
+	lines: flag.Uint("line", 1, "Specify number of lines for gather"),
 
-		proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),
-		limit: flag.Uint("limit", 512, "Specify limit of goroutine, for limitation of file descriptor"),
-	}
-)
+	proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),
+	limit: flag.Uint("limit", 512, "Specify limit of goroutine, for limitation of file descriptor"),
+}
 
-// TODO: init To simple!
-// フラグ処理を入れてみたけどinitである必要がない
+// TODO: init Reconsider, フラグ処理を入れてみたけどinitである必要は無いかも?
+//     : flagsの処理はレシーバに切り出してまとめるべき,たぶん
 func init() {
 	// Parse and Unknown flags check
 	flag.Usage = usage
@@ -160,6 +172,7 @@ func init() {
 		if err != nil {
 			log.Fatalf("init:%v", err)
 		}
+		// Check override to specify output file
 		if _, errstat := os.Stat(cleanpath); errstat == nil && *flags.force == "off" {
 			if !ask(fmt.Sprintf("Override? %v", cleanpath)) {
 				os.Exit(1)
@@ -171,7 +184,6 @@ func init() {
 			log.Fatalf("init:%v", err)
 		}
 		defer loggingFileClose("init", tmp)
-
 		flags.data.outputFilePath = cleanpath
 	}
 
@@ -311,7 +323,7 @@ func suffixSearcher(filename string, targetSuffix []string) bool {
 
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
-func gather(filename string, flags *Flags) (todoList []string) {
+func gather(filename string, flags Flags) (todoList []string) {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("gather:%v", err)
@@ -349,10 +361,11 @@ func gather(filename string, flags *Flags) (todoList []string) {
 	return todoList
 }
 
+// にゃん
 // NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 // TODO: Review, To simple
-func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags *Flags) (todoMap map[string][]string) {
+func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
 
@@ -416,7 +429,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags *Flags) (todoM
 
 // GophersProc generate TODOMap from file list! gatcha!!
 // TODO: Refactor, To simple!
-func GophersProc(flags *Flags) (todoMap map[string][]string) {
+func GophersProc(flags Flags) (todoMap map[string][]string) {
 	infoMap := make(map[string][]os.FileInfo)
 
 	// For recursively switch
@@ -460,7 +473,7 @@ func GophersProc(flags *Flags) (todoMap map[string][]string) {
 
 // OutputTODOList is output crawl results
 // TODO: Refactor, Fix to Duplication
-func OutputTODOList(todoMap map[string][]string) {
+func OutputTODOList(todoMap map[string][]string, flags Flags) {
 	// For Specify output file
 	stdout := os.Stdout
 	var err error
@@ -509,9 +522,7 @@ func OutputTODOList(todoMap map[string][]string) {
 	}
 }
 
-// TODO: エラーログの吐き方考えたい
-// NOTE: flagに直接触れるのは init, main, データトップのGophersProc, 表示トップのOutputTODOList, に限定してみる
 func main() {
-	todoMap := GophersProc(flags)
-	OutputTODOList(todoMap)
+	todoMap := GophersProc(*flags)
+	OutputTODOList(todoMap, *flags)
 }

@@ -14,7 +14,7 @@ Output from ```todogotcha```
 ## Installation
 ---
 ```
-go get github.com/dorymint/go-TODOGothca/todogotcha
+go get github.com/dorymint/go-TODOGotcha/todogotcha
 ```
 
 ## Usage

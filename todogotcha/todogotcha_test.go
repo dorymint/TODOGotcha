@@ -1,7 +1,8 @@
 package main
 
 
-// TODO: Modified flgas check!!!
+// TODO: Modified flgas check
+// TODO: Add test case for change the flags
 
 
 
@@ -273,13 +274,15 @@ case empty keyword
 	}
 
 	run := func(data test, keyword string) {
+		flagsTest := flags
+		*flagsTest.keyword = keyword
 		filename := writeContent(t, data.filecontent)
 		defer func() {
 			if err := os.Remove(filename); err != nil {
 				t.Fatal(err)
 			}
 		}()
-		out := gather(filename, keyword)
+		out := gather(filename, flagsTest)
 		if !reflect.DeepEqual(data.expected, out) {
 			t.Error("not equal!")
 			t.Error("expected")
@@ -314,7 +317,6 @@ func deepEqualMaps(t *testing.T, expected, out map[string][]string) {
 	}
 }
 
-// TODO: Create test data and run
 func TestUnlimitedGopherWorks(t *testing.T) {
 	// empty paturn
 	// TODO: Add another case
@@ -322,15 +324,16 @@ func TestUnlimitedGopherWorks(t *testing.T) {
 	infomap := dirsCrawl(TmpRoot)
 
 	expected := make(map[string][]string)
-	out := unlimitedGopherWorks(infomap, []string{"go", "txt"}, "TODO:")
+	out := unlimitedGopherWorks(infomap, flags)
 	deepEqualMaps(t, expected, out)
 }
 
 // Integration test
 func TestGophersProc(t *testing.T) {
 	// empty
-	// TODO: Add another case
-	out := GophersProc(TmpRoot)
+	flagsTest := flags
+	*flagsTest.root = TmpRoot
+	out := GophersProc(flagsTest)
 	expected := make(map[string][]string)
 	deepEqualMaps(t, expected, out)
 }

@@ -54,20 +54,20 @@ todogotcha -h
 | separator | Specify separator for directoris and files | ; |
 | output | Specify output file | "" |
 | force | Ignore override confirm [on:off]? | off |
-| recursively | Recursively search [on:off]? | on |
+| recursively | Recursively search from root [on:off]? | on |
 | result | Specify result [on:off]? | on |
 | sort | Sort for directory name [on:off]? | off |
-| date | Add output DATE in result [on:off]? | off |
-| trim | Trim the keyword [on:off]? | on |
-| line | Specify number of line | 1 |
-| limit | Limitation for file descriptor | 512 |
+| date | Add date [on:off]? | off |
+| trim | Trim the keyword for output [on:off]? | on |
+| line | Specify number of lines for gather | 1 |
+| limit | Specify limit of goroutine, for file descriptor | 512 |
 | proc | Specify GOMAXPROCS | automatic setting |
 
 **This example is changed default option**
 ```
 todogotcha -root "../../" \
           -keyword "NOTE: " \
-          -filetype "go c cc cpp txt py" \
+          -filetype "cpp py txt" \
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \
           -date on \

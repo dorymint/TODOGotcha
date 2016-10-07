@@ -8,12 +8,11 @@ Show the TODO list
 
 ## Example
 ---
-
+Output from `todogotcha`  
 ![gotcha](./gotcha.png "gotcha")  
-Output from ```todogotcha```  
 
-![gotcha2](./gotcha2.png "gotcha2")
-Output from ```todogotcha -keyword "func " -trim off -result on```  
+Output from `todogotcha -keyword "func " -trim off -result on`  
+![gotcha2](./gotcha2.png "gotcha2")  
 
 ## Installation
 ---

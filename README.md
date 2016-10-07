@@ -71,7 +71,8 @@ todogotcha -root "../../" \
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \
           -date on \
-          -proc 2
+          -proc 2 \
+          -result on
 ```
 
 ## Licence

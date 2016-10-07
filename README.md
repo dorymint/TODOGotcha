@@ -11,7 +11,8 @@ Show the TODO list
 Output from `todogotcha`  
 ![gotcha](./gotcha.png "gotcha")  
 
-Output from `todogotcha -keyword "func " -trim off -result on`  
+If you need make a list from function  
+`todogotcha -keyword "func " -trim off -result on`  
 ![gotcha2](./gotcha2.png "gotcha2")  
 
 ## Installation

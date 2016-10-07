@@ -6,8 +6,13 @@ Search from current directory recursively
 Create TODO list from search files  
 Show the TODO list  
 
-**NEXT BRANCH**
-Add flag, Specify number of lines
+**NEXT BRANCH**  
+Add flags  
+-line  
+-trim  
+-limit  
+Fix implementation  
+
 
 ## Example
 ---
@@ -53,7 +58,9 @@ todogotcha -h
 | result | Specify result [on:off]? | on |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add output DATE in result [on:off]? | off |
+| trim | Trim the keyword [on:off]? | on |
 | line | Specify number of line | 1 |
+| limit | Limitation for file descriptor | 512 |
 | proc | Specify GOMAXPROCS | automatic setting |
 
 **This example is changed default option**

@@ -14,6 +14,29 @@ import (
 	"time"
 )
 
+func loggingFileClose(at string, f interface {
+	Close() error
+}) {
+	if err := f.Close(); err != nil {
+		log.Printf("%s:%v", at, err)
+	}
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, `
+Description
+	1, Search from current directory recursively
+	2, Create TODO List from search files
+	3, Output to file or os.stdin
+`)
+	fmt.Fprintf(os.Stderr, `
+All flags
+`)
+	flag.PrintDefaults()
+	os.Exit(1)
+}
+
 // Flags for pkg name sort
 type Flags struct {
 	// Flags for Data
@@ -33,9 +56,22 @@ type Flags struct {
 	date   *string
 
 	// TODO: Reconsider this. need?
+	trim  *string
 	lines *uint
+
 	// TODO: Specify GOMAXPROCS. Maybe future delete this
 	proc *int
+	// NOTE: Countermove "too many open files"
+	// TODO: Reconsider this. need?
+	limit *uint
+
+	// Sticky data
+	data struct {
+		dir            []string
+		file           []string
+		filetypes      []string
+		outputFilePath string
+	}
 }
 
 // For stringer, ALL flags
@@ -57,10 +93,10 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("fileList=%q\n", *f.fileList)
 	tmp += fmt.Sprintf("separator=%q\n", *f.separator)
 
-
-	// TODO: Reconsider line
+	tmp += fmt.Sprintf("trim=%v\n", *flags.trim)
 	tmp += fmt.Sprintf("line=%v\n", *flags.lines)
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
+	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
 	return tmp
 }
 
@@ -82,27 +118,30 @@ var (
 		sort:        flag.String("sort", "off", "Specify sorted flags [on:off]?"),
 		date:        flag.String("date", "off", "Add output DATE in result [on:off]?"),
 
-		// TODO: Reconsider line
+		// TODO: Reconsider
+		trim:  flag.String("trim", "on", "Specify trim of keyword [on:off]?"),
 		lines: flag.Uint("line", 1, "Specify number of lines"),
-		proc: flag.Int("proc", 0, "Specify GOMAXPROCS"),
-	}
 
-	suffixList     []string
-	fileList       []string
-	dirList        []string
-	outputFilePath string
+		proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),
+		limit: flag.Uint("limit", 512, `For countermove "too many open files", Specify limit of open to files`),
+	}
 )
 
 // TODO: To simple!
 // フラグ処理を入れてみたけどinitである必要がない
 func init() {
-	// Parse and Unknown flag check
+	// Parse and Unknown flags check
+	flag.Usage = usage
 	flag.Parse()
 	argsCheck()
 
 	runtime.GOMAXPROCS(*flags.proc)
 
-	// TODO: Reconsider line
+	if *flags.limit <= 1 {
+		fmt.Fprintln(os.Stderr, "Require 2 or more")
+		os.Exit(1)
+	}
+
 	if *flags.lines == 0 {
 		fmt.Fprintln(os.Stderr, "Require 1 line or more")
 		os.Exit(1)
@@ -133,16 +172,12 @@ func init() {
 		if err != nil {
 			log.Fatalf("init:%v", err)
 		}
-		defer func() {
-			if errclose := tmp.Close(); errclose != nil {
-				log.Fatalf("init:%v", errclose)
-			}
-		}()
-		outputFilePath = cleanpath
+		defer loggingFileClose("init", tmp)
+		flags.data.outputFilePath = cleanpath
 	}
 
 	// For specify filetype
-	suffixList = strings.Split(*flags.suffix, " ")
+	flags.data.filetypes = strings.Split(*flags.suffix, " ")
 
 	// For specify files and dirs
 	pathClean := func(str *[]string, in *string) {
@@ -157,10 +192,10 @@ func init() {
 		}
 	}
 	if *flags.fileList != "" {
-		pathClean(&fileList, flags.fileList)
+		pathClean(&flags.data.file, flags.fileList)
 	}
 	if *flags.dirList != "" {
-		pathClean(&dirList, flags.dirList)
+		pathClean(&flags.data.dir, flags.dirList)
 	}
 }
 
@@ -257,11 +292,7 @@ func getInfos(dirname string) ([]os.FileInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getInfos:%v", err)
 	}
-	defer func() {
-		if errclose := f.Close(); errclose != nil {
-			log.Printf("getInfos:%v", errclose)
-		}
-	}()
+	defer loggingFileClose("getInfos", f)
 	infos, err := f.Readdir(0)
 	if err != nil {
 		return nil, fmt.Errorf("getInfos:%v", err)
@@ -269,7 +300,7 @@ func getInfos(dirname string) ([]os.FileInfo, error) {
 	return infos, nil
 }
 
-func suffixSeacher(filename string, targetSuffix []string) bool {
+func suffixSearcher(filename string, targetSuffix []string) bool {
 	for _, x := range targetSuffix {
 		if strings.HasSuffix(filename, "."+x) {
 			return true
@@ -280,38 +311,42 @@ func suffixSeacher(filename string, targetSuffix []string) bool {
 
 // シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
-func gather(filename string, target string, targetLines uint) (todoList []string) {
+func gather(filename string, flags *Flags) (todoList []string) {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("gather:%v", err)
 		return nil
 	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Printf("gather:%v", err)
-		}
-	}()
+	defer loggingFileClose("gather", f)
 
-	// TODO: Reconsider this. Need targetLine?
+	// TODO: Reconsider, flags[line:trim:] is need?
 	sc := bufio.NewScanner(f)
-	tmpLineCount := uint(1)
+	tmpLineCount := uint(0)
 	for i := uint(1); sc.Scan(); i++ {
 		if err := sc.Err(); err != nil {
 			log.Printf("gather:%v", err)
 			return nil
 		}
-		if tmpLineCount == 1 {
-			if index := strings.Index(sc.Text(), target); index != -1 {
-				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(target):]))
-				tmpLineCount++
+		// TODO: Reconsider split function, for fast
+		index := strings.Index(sc.Text(), *flags.keyword)
+		if index != -1 {
+			if *flags.trim == "off" {
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()))
+				tmpLineCount = 1
+				continue
+			} else {
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))
+				tmpLineCount = 1
+				continue
 			}
-		} else if tmpLineCount <= targetLines {
+		}
+		if tmpLineCount != 0 && tmpLineCount <= *flags.lines {
 			// TODO: (´・ω・`)つ [refactor]
 			//todoList = append(todoList, fmt.Sprintf(" %s:%s", strings.Repeat(" ", len(fmt.Sprintf("%v", i))),  sc.Text()))
-			todoList = append(todoList, fmt.Sprintf(" %v:%s", i,  sc.Text()))
+			todoList = append(todoList, fmt.Sprintf(" %v:%s", i, sc.Text()))
 			tmpLineCount++
 		} else {
-			tmpLineCount = 1
+			tmpLineCount = 0
 		}
 	}
 	return todoList
@@ -320,15 +355,15 @@ func gather(filename string, target string, targetLines uint) (todoList []string
 // NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 // TODO: Review, To simple
-func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, keyword string, lines uint) (todoMap map[string][]string) {
+func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags *Flags) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
 
 	// NOTE: Countermove "too many open files"!!
 	// TODO: 出来れば (descriptor limits / 2) で値を決めたい
 	// 環境依存のリミットを取得する良い方法を見つけてない(´・ω・`)
-	gophersLimit := 512 // NOTE: This Limit is require (Limit < file descriptor limits)
-	var gophersLimiter int
+	gophersLimit := *flags.limit // NOTE: This Limit is require (Limit < file descriptor limits)
+	var gophersLimiter uint
 
 	mux := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
@@ -343,7 +378,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 		}()
 
 		// TODO: Reconsider lines
-		todoList := gather(filepath, keyword, lines)
+		todoList := gather(filepath, flags)
 		if todoList != nil {
 			mux.Lock()
 			todoMap[filepath] = todoList
@@ -353,7 +388,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 
 	for dirname, infos := range infoMap {
 		for _, info := range infos {
-			if suffixSeacher(info.Name(), filetypes) {
+			if suffixSearcher(info.Name(), flags.data.filetypes) {
 				wg.Add(1)
 				mux.Lock()
 				gophersLimiter++
@@ -385,23 +420,23 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, filetypes []string, 
 
 // GophersProc generate TODOMap from file list! gatcha!!
 // TODO: Refactor, To simple!
-func GophersProc(root string) (todoMap map[string][]string) {
+func GophersProc(flags *Flags) (todoMap map[string][]string) {
 	infoMap := make(map[string][]os.FileInfo)
 
 	// For recursively switch
 	if *flags.recursively == "on" {
-		infoMap = dirsCrawl(root)
+		infoMap = dirsCrawl(*flags.root)
 	} else {
-		infos, err := getInfos(root)
+		infos, err := getInfos(*flags.root)
 		if err != nil {
 			log.Printf("GophersProc:%v", err)
 		} else {
-			infoMap[root] = infos
+			infoMap[*flags.root] = infos
 		}
 	}
 
 	// For specify dirs
-	for _, dirname := range dirList {
+	for _, dirname := range flags.data.dir {
 		if _, ok := infoMap[dirname]; !ok {
 			infos, err := getInfos(dirname)
 			if err != nil {
@@ -413,13 +448,14 @@ func GophersProc(root string) (todoMap map[string][]string) {
 	}
 
 	// Generate todo list from infoMap
-	todoMap = unlimitedGopherWorks(infoMap, suffixList, *flags.keyword, *flags.lines)
+	// TODO: fix
+	todoMap = unlimitedGopherWorks(infoMap, flags)
 
 	// For specify files
-	for _, s := range fileList {
+	for _, s := range flags.data.file {
 		if _, ok := todoMap[s]; !ok {
 			// TODO: Reconsider lines
-			todoList := gather(s, *flags.keyword, *flags.lines)
+			todoList := gather(s, flags)
 			if todoList != nil {
 				todoMap[s] = todoList
 			}
@@ -434,16 +470,12 @@ func OutputTODOList(todoMap map[string][]string) {
 	// For Specify output file
 	stdout := os.Stdout
 	var err error
-	if outputFilePath != "" {
-		stdout, err = os.Create(outputFilePath)
+	if flags.data.outputFilePath != "" {
+		stdout, err = os.Create(flags.data.outputFilePath)
 		if err != nil {
 			log.Fatalf("OutputTODOList:%v", err)
 		}
-		defer func() {
-			if errclose := stdout.Close(); errclose != nil {
-				log.Printf("OutputTODOList:%v", errclose)
-			}
-		}()
+		defer loggingFileClose("OutputTODOList", stdout)
 	}
 
 	// For sort
@@ -488,6 +520,6 @@ func OutputTODOList(todoMap map[string][]string) {
 // TODO: エラーログの吐き方考えたい
 // NOTE: flagに直接触れるのは init, main, データトップのGophersProc, 表示トップのOutputTODOList, に限定してみる
 func main() {
-	todoMap := GophersProc(*flags.root)
+	todoMap := GophersProc(flags)
 	OutputTODOList(todoMap)
 }

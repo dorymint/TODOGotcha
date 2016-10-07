@@ -6,14 +6,6 @@ Search from current directory recursively
 Create TODO list from search files  
 Show the TODO list  
 
-**NEXT BRANCH**  
-Add flags  
--line  
--trim  
--limit  
-Fix implementation  
-
-
 ## Example
 ---
 ![gothca](./gotcha.png "gotcha")  

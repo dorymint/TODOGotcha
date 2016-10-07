@@ -172,12 +172,12 @@ func TestSuffixSearcher(t *testing.T) {
 	}
 
 	for _, x := range fileNames {
-		if !suffixSeacher(x, targetSuffix) {
+		if !suffixSearcher(x, targetSuffix) {
 			t.Fatalf("expected return true, but false %v\n", x)
 		}
 	}
 	for _, x := range ignoreNames {
-		if suffixSeacher(x, targetSuffix) {
+		if suffixSearcher(x, targetSuffix) {
 			t.Fatalf("expected return false, but true %v\n", x)
 		}
 	}

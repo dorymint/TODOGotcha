@@ -340,7 +340,7 @@ func gather(filename string, flags *Flags) (todoList []string) {
 				continue
 			}
 		}
-		if tmpLineCount != 0 && tmpLineCount <= *flags.lines {
+		if tmpLineCount != 0 && tmpLineCount < *flags.lines {
 			// TODO: (´・ω・`)つ [refactor]
 			//todoList = append(todoList, fmt.Sprintf(" %s:%s", strings.Repeat(" ", len(fmt.Sprintf("%v", i))),  sc.Text()))
 			todoList = append(todoList, fmt.Sprintf(" %v:%s", i, sc.Text()))

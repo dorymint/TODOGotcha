@@ -1,10 +1,6 @@
 package main
 
-
-// TODO: Modified flgas check
 // TODO: Add test case for change the flags
-
-
 
 import (
 	"io/ioutil"

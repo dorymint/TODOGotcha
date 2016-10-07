@@ -8,8 +8,12 @@ Show the TODO list
 
 ## Example
 ---
-![gothca](./gotcha.png "gotcha")  
+
+![gotcha](./gotcha.png "gotcha")  
 Output from ```todogotcha```  
+
+![gotcha2](./gotcha2.png "gotcha2")
+Output from ```todogotcha -keyword "func " -trim off -result on```  
 
 ## Installation
 ---
@@ -59,7 +63,7 @@ todogotcha -h
 ```
 todogotcha -root "../../" \
           -keyword "NOTE: " \
-          -filetype "cpp py txt" \
+          -filetype "cpp py txt go" \
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \
           -date on \

@@ -116,21 +116,21 @@ func (f Flags) String() string {
 var flags = &Flags{
 	root:    flag.String("root", "./", "Specify recursively-search root directory"),
 	suffix:  flag.String("filetype", "go txt", `Specify target file types into the " "`),
-	keyword: flag.String("keyword", "TODO: ", "Specify gather target keyword"),
+	keyword: flag.String("keyword", "TODO: ", "Specify target for list"),
 
-	fileList:  flag.String("file", "", `Specify file list`),
-	dirList:   flag.String("dir", "", `Specify directory list, This want not recursively serach`),
-	separator: flag.String("separator", ";", "Specify separator for specify directories and files lists"),
+	fileList:  flag.String("file", "", `Specify list target files`),
+	dirList:   flag.String("dir", "", `Specify list target directories, is not recursive serach`),
+	separator: flag.String("separator", ";", "Specify separator for specify directories and files"),
 
-	output: flag.String("output", "", "Specify output file"),
+	output: flag.String("output", "", "Specify output to filepath"),
 	force:  flag.String("force", "off", "Ignore override confirm [on:off]?"),
 
-	recursively: flag.String("recursively", "on", `If this "off", not recursively search from root [on:off]?`),
-	result:      flag.String("result", "off", "Specify result [on:off]?"),
-	sort:        flag.String("sort", "off", "Specify sort [on:off]?"),
-	date:        flag.String("date", "off", "Add output date [on:off]?"),
+	recursively: flag.String("recursively", "on", `If this "off", not recursive search from root [on:off]?`),
+	result:      flag.String("result", "off", "Output result for flags state [on:off]?"),
+	sort:        flag.String("sort", "off", "Sort from directory name [on:off]?"),
+	date:        flag.String("date", "off", "Date [on:off]?"),
 
-	trim:  flag.String("trim", "on", "Specify trim of keyword for output [on:off]?"),
+	trim:  flag.String("trim", "on", "Trim the keyword from output [on:off]?"),
 	lines: flag.Uint("line", 1, "Specify number of lines for gather"),
 
 	proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),

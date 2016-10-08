@@ -63,6 +63,7 @@ todogotcha -h
 ```
 todogotcha -root "../../" \
           -keyword "NOTE: " \
+          -line 2 \
           -filetype "cpp py txt go" \
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \

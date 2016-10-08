@@ -44,13 +44,13 @@ todogotcha -h
 | :---- | :---------- | :------ |
 | root  | Search root directory | ./ |
 | filetype | Target filetypes | "go txt" |
-| keyword | Keyword | "TODO: " |
+| keyword | Specify target for list | "TODO: " |
 | file | Target file list | "" |
-| dir | Directory list, this search is not recursive | "" |
-| separator | Separator for directoris and files | ; |
+| dir | Directory list, is do not recursive search | "" |
+| separator | Specify separator for directoris and files | ; |
 | output | Output filepath | "" |
 | force | Ignore override confirm [on:off]? | off |
-| recursively | Recursively search from root [on:off]? | on |
+| recursively | Recursive search from root [on:off]? | on |
 | result | Result for flags state [on:off]? | off |
 | sort | Sort for directory name [on:off]? | off |
 | date | Add date [on:off]? | off |

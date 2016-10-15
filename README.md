@@ -1,4 +1,4 @@
-# TODOGotcha
+# todogotcha
 ---
 ガッチャ!  
 
@@ -18,7 +18,7 @@ If you need make a list from function
 ## Installation
 ---
 ```
-go get github.com/dorymint/go-TODOGotcha/todogotcha
+go get github.com/dorymint/go-todogotcha/todogotcha
 ```
 
 ## Usage

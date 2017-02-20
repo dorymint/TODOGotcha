@@ -68,7 +68,7 @@ todogotcha -root "./path/to/search/root/" \
           -trim=false \
           -keyword "NOTE: " \
           -line 2 \
-          -filetype ".cpp .py .txt .go" \
+          -filetype ".cpp .py .txt .go .vim" \
           -separator ";"
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \

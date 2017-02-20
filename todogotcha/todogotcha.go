@@ -97,7 +97,7 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("filetype=%q\n", *f.suffix)
 
 	tmp += fmt.Sprintf("recursively=%v\n", *f.recursively)
-	tmp += fmt.Sprintf("ignoreLong=%v\n", *f.ignoreLong)
+	tmp += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
 	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
 	tmp += fmt.Sprintf("date=%v\n", *f.date)
 	tmp += fmt.Sprintf("force=%v\n", *f.force)
@@ -130,7 +130,7 @@ var flags = Flags{
 	force:  flag.Bool("force", false, "Ignore override confirm [true:false]?"),
 
 	recursively: flag.Bool("recursively", true, `If this false, not recursive search from root [true:false]?`),
-	ignoreLong:  flag.Bool("ignoreLong", true, `Ignore file that has long line [true:false]?`),
+	ignoreLong:  flag.Bool("ignore-long", true, `Ignore file that has long line [true:false]?`),
 	result:      flag.Bool("result", false, "Output result for flags state [true:false]?"),
 	sort:        flag.Bool("sort", false, "Sort to-do list [true:false]?"),
 	date:        flag.Bool("date", false, "Date [true:false]?"),

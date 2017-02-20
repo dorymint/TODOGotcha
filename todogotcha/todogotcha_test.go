@@ -149,7 +149,7 @@ func TestDrisCrawl(t *testing.T) {
 }
 
 func BenchmarkDirsCrawl(b *testing.B) {
-	flagsTest := *flags
+	flagsTest := flags
 	*flagsTest.root = TmpRoot
 	for i := 0; i < b.N; i++ {
 		_ = dirsCrawl(*flagsTest.root)
@@ -158,8 +158,8 @@ func BenchmarkDirsCrawl(b *testing.B) {
 
 func TestSuffixSearcher(t *testing.T) {
 	targetSuffix := []string{
-		"go",
-		"txt",
+		".go",
+		".txt",
 	}
 	fileNames := []string{
 		"test1.go",
@@ -272,7 +272,7 @@ case empty keyword
 	}
 
 	run := func(data test, keyword string) {
-		flagsTest := *flags
+		flagsTest := flags
 		*flagsTest.keyword = keyword
 		filename := writeContent(t, data.filecontent)
 		defer func() {
@@ -322,14 +322,14 @@ func TestUnlimitedGopherWorks(t *testing.T) {
 	infomap := dirsCrawl(TmpRoot)
 
 	expected := make(map[string][]string)
-	out := unlimitedGopherWorks(infomap, *flags)
+	out := unlimitedGopherWorks(infomap, flags)
 	deepEqualMaps(t, expected, out)
 }
 
 // Integration test
 func TestGophersProc(t *testing.T) {
 	// empty
-	flagsTest := *flags
+	flagsTest := flags
 	*flagsTest.root = TmpRoot
 	out := GophersProc(flagsTest)
 	expected := make(map[string][]string)
@@ -342,9 +342,9 @@ func ExampleOutputTODOList() {
 	todoMap["/tmp/test"] = []string{"L1: test"}
 
 	// flgas
-	flagsTest := *flags
-	*flagsTest.sort = "off"
-	*flagsTest.result = "off"
+	flagsTest := flags
+	*flagsTest.sort = false
+	*flagsTest.result = false
 	OutputTODOList(todoMap, flagsTest)
 	// Unordered Output:
 	// /tmp/test
@@ -356,9 +356,9 @@ func ExampleOutputTODOList_sortON() {
 	todoMap["/a"] = []string{"L2: sort on"}
 
 	// flgas
-	flagsTest := *flags
-	*flagsTest.sort = "on"
-	*flagsTest.result = "off"
+	flagsTest := flags
+	*flagsTest.sort = true
+	*flagsTest.result = false
 	OutputTODOList(todoMap, flagsTest)
 	// Output:
 	// /a

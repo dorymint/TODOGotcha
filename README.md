@@ -3,8 +3,10 @@
 ガッチャ!  
 
 Search from current directory recursively  
-Create TODO list from search files  
-Show the TODO list  
+Create to-do list from search files  
+Show the to-do list  
+
+just like find, grep
 
 ## Example
 ---
@@ -12,7 +14,7 @@ Output from `todogotcha`
 ![gotcha](./gotcha.png "gotcha")  
 
 If you need make a list from function  
-`todogotcha -keyword "func " -trim off -result on`  
+`todogotcha -keyword "func " -trim=false`  
 ![gotcha2](./gotcha2.png "gotcha2")  
 
 ## Installation
@@ -23,7 +25,7 @@ go get github.com/dorymint/go-todogotcha/todogotcha
 
 ## Usage
 ---
-Display the found TODO list like example
+Display the found to-do list like example
 ```
 todogotcha
 ```
@@ -42,34 +44,37 @@ todogotcha -h
 
 | Flags | Description | Default |
 | :---- | :---------- | :------ |
-| root  | Search root directory | ./ |
-| filetype | Target filetypes | "go txt" |
-| keyword | Specify target for list | "TODO: " |
-| file | Target file list | "" |
-| dir | Directory list, is do not recursive search | "" |
-| separator | Specify separator for directoris and files | ; |
+| root  | Search root | ./ |
+| filetype | Target filetypes(suffix) | ".go .txt" |
+| keyword | Specify target | "TODO: " |
+| file | Specify target files | "" |
+| dir | Specify directory list, is do not recursive | "" |
+| separator | separator for Flags(dir and file) | ; |
 | output | Output filepath | "" |
-| force | Ignore override confirm [on:off]? | off |
-| recursively | Recursive search from root [on:off]? | on |
-| result | Result for flags state [on:off]? | off |
-| sort | Sort for directory name [on:off]? | off |
-| date | Add date [on:off]? | off |
-| trim | Trim the keyword from output [on:off]? | on |
-| line | Specify number of lines for gather | 1 |
+| force | Ignore override confirm [true:false]? | false |
+| recursively | Recursive search from root [true:false]? | true |
+| result | Result for flags state [true:false]? | false |
+| sort | For output [true:false]? | false |
+| date | Add date [true:false]? | false |
+| trim | Trim the keyword from output [true:false]? | true |
+| line | Specify number of lines for gather from the keyword | 1 |
 | limit | Specify limit of goroutine, for file descriptor | 512 |
-| proc | Specify GOMAXPROCS | automatic setting |
+| proc | Specify GOMAXPROCS(0 that means automatic) | 0 |
 
 **This example is changed default option**
 ```
-todogotcha -root "../../" \
+todogotcha -root "./path/to/search/root/" \
+          -recursively=false \
+          -trim=false \
           -keyword "NOTE: " \
           -line 2 \
-          -filetype "cpp py txt go" \
+          -filetype ".cpp .py .txt .go" \
+          -separator ";"
           -dir "./path/to/dir1/;../path/to/dir2/" \
           -file "./path/to/file1;../path/to/file2" \
-          -date on \
-          -proc 2 \
-          -result on
+          -date=true \
+          -proc 1 \
+          -result=true
 ```
 
 ## Licence

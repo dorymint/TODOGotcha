@@ -1,6 +1,6 @@
 package main
 
-// TODO: エラーログの吐き方考えたい, error buffer 作って溜めてリザルトで吐く?
+// TODO: エラーログの吐き方 error buffer 作って溜めてリザルトで吐く?
 //     : 複数のgoroutineが同じロガーに同時にアクセスしてもlogがよろしくやってくれるのか調べてない
 //     : 普通に考えたら裏で常に走りながらチャンネルで待ち受けてそうだけどどうだろう
 //     : pkgのsrcみると大丈夫そう
@@ -11,6 +11,8 @@ package main
 //     : goroutineいっぱい使ってみたい
 
 // TODO: Refactor, フラグにくっついてるflag.dataの初期化をinitからレシーバに切り出す
+
+// TODO: Review, To simple
 
 import (
 	"bufio"
@@ -59,16 +61,16 @@ type Flags struct {
 	fileList    *string
 	dirList     *string
 	separator   *string
-	recursively *string
+	recursively *bool
 
 	// Flags for Output
-	result *string
 	output *string
-	force  *string
-	sort   *string
-	date   *string
+	result *bool
+	force  *bool
+	sort   *bool
+	date   *bool
 
-	trim  *string
+	trim  *bool
 	lines *uint
 
 	// TODO: Specify GOMAXPROCS. Maybe future delete this
@@ -109,28 +111,28 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
 	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
 	return tmp
-	// NOTE: string(``)と+""でまとめてもいいけどわかりやすさと変更のためにこのままにする
+	// NOTE: string(``)と+""でまとめてもいいこのままで
 }
 
 // NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
-var flags = &Flags{
-	root:    flag.String("root", "./", "Specify recursively-search root directory"),
-	suffix:  flag.String("filetype", "go txt", `Specify target file types into the " "`),
-	keyword: flag.String("keyword", "TODO: ", "Specify target for list"),
+var flags = Flags{
+	root:    flag.String("root", "./", "Specify directory recursively-search root"),
+	suffix:  flag.String("filetype", ".go .txt", `Specify target file types`),
+	keyword: flag.String("keyword", "TODO: ", "Specify word for list"),
 
-	fileList:  flag.String("file", "", `Specify list target files`),
-	dirList:   flag.String("dir", "", `Specify list target directories, is not recursive serach`),
-	separator: flag.String("separator", ";", "Specify separator for specify directories and files"),
+	fileList:  flag.String("file", "", `Specify files`),
+	dirList:   flag.String("dir", "", `Specify search to directories, is not recursive`),
+	separator: flag.String("separator", ";", "Specify separator for Flags(dir and file)"),
 
 	output: flag.String("output", "", "Specify output to filepath"),
-	force:  flag.String("force", "off", "Ignore override confirm [on:off]?"),
+	force:  flag.Bool("force", false, "Ignore override confirm [true:false]?"),
 
-	recursively: flag.String("recursively", "on", `If this "off", not recursive search from root [on:off]?`),
-	result:      flag.String("result", "off", "Output result for flags state [on:off]?"),
-	sort:        flag.String("sort", "off", "Sort from directory name [on:off]?"),
-	date:        flag.String("date", "off", "Date [on:off]?"),
+	recursively: flag.Bool("recursively", true, `If this false, not recursive search from root [true:false]?`),
+	result:      flag.Bool("result", false, "Output result for flags state [true:false]?"),
+	sort:        flag.Bool("sort", false, "Sort to-do list [true:false]?"),
+	date:        flag.Bool("date", false, "Date [true:false]?"),
 
-	trim:  flag.String("trim", "on", "Trim the keyword from output [on:off]?"),
+	trim:  flag.Bool("trim", true, "Trim the keyword from output [true:false]?"),
 	lines: flag.Uint("line", 1, "Specify number of lines for gather"),
 
 	proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),
@@ -173,7 +175,7 @@ func init() {
 			log.Fatalf("init:%v", err)
 		}
 		// Check override to specify output file
-		if _, errstat := os.Stat(cleanpath); errstat == nil && *flags.force == "off" {
+		if _, errstat := os.Stat(cleanpath); errstat == nil && *flags.force == false {
 			if !ask(fmt.Sprintf("Override? %v", cleanpath)) {
 				os.Exit(1)
 			}
@@ -314,7 +316,7 @@ func getInfos(dirname string) ([]os.FileInfo, error) {
 
 func suffixSearcher(filename string, targetSuffix []string) bool {
 	for _, x := range targetSuffix {
-		if strings.HasSuffix(filename, "."+x) {
+		if strings.HasSuffix(filename, x) {
 			return true
 		}
 	}
@@ -339,18 +341,18 @@ func gather(filename string, flags Flags) (todoList []string) {
 			return nil
 		}
 		if index := strings.Index(sc.Text(), *flags.keyword); index != -1 {
-			if *flags.trim == "off" {
-				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()))
+			if *flags.trim {
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))
 				tmpLineCount = 1
 				continue
 			} else {
-				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()))
 				tmpLineCount = 1
 				continue
 			}
 		}
 		if tmpLineCount != 0 && tmpLineCount < *flags.lines {
-			// TODO: (´・ω・`)つ [refactor]
+			// TODO: refactor
 			//todoList = append(todoList, fmt.Sprintf(" %s:%s", strings.Repeat(" ", len(fmt.Sprintf("%v", i))),  sc.Text()))
 			todoList = append(todoList, fmt.Sprintf(" %v:%s", i, sc.Text()))
 			tmpLineCount++
@@ -364,7 +366,6 @@ func gather(filename string, flags Flags) (todoList []string) {
 // にゃん
 // NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
-// TODO: Review, To simple
 func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
@@ -407,7 +408,6 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 
 				// NOTE: Countermove "too many open files"
 				// gophersLimiterの読み出しで値が不確定だけどこれは大体合ってれば問題ないはず
-				// TODO: それでも気になるので、速度を落とさずいい方法があれば修正する
 				if gophersLimiter > gophersLimit/2 {
 					time.Sleep(time.Microsecond)
 				}
@@ -428,12 +428,11 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 }
 
 // GophersProc generate TODOMap from file list! gatcha!!
-// TODO: Refactor, To simple!
 func GophersProc(flags Flags) (todoMap map[string][]string) {
 	infoMap := make(map[string][]os.FileInfo)
 
 	// For recursively switch
-	if *flags.recursively == "on" {
+	if *flags.recursively {
 		infoMap = dirsCrawl(*flags.root)
 	} else {
 		infos, err := getInfos(*flags.root)
@@ -472,7 +471,6 @@ func GophersProc(flags Flags) (todoMap map[string][]string) {
 }
 
 // OutputTODOList is output crawl results
-// TODO: Refactor, Fix to Duplication
 func OutputTODOList(todoMap map[string][]string, flags Flags) {
 	// For Specify output file
 	stdout := os.Stdout
@@ -486,7 +484,7 @@ func OutputTODOList(todoMap map[string][]string, flags Flags) {
 	}
 
 	// For sort
-	if *flags.sort == "on" {
+	if *flags.sort {
 		// Optional
 		var filenames []string
 		for filename := range todoMap {
@@ -511,18 +509,17 @@ func OutputTODOList(todoMap map[string][]string, flags Flags) {
 		}
 	}
 
-	if *flags.result == "on" {
+	if *flags.result {
 		fmt.Fprintln(stdout, "-----| RESULT |-----")
 		fmt.Fprintf(stdout, "%v files found have the %q\n\n", len(todoMap), *flags.keyword)
-
 		fmt.Fprintln(stdout, flags)
 	}
-	if *flags.date == "on" {
+	if *flags.date {
 		fmt.Fprintf(stdout, "\nDATE:%v\n", time.Now())
 	}
 }
 
 func main() {
-	todoMap := GophersProc(*flags)
-	OutputTODOList(todoMap, *flags)
+	todoMap := GophersProc(flags)
+	OutputTODOList(todoMap, flags)
 }

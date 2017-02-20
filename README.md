@@ -63,17 +63,17 @@ todogotcha -h
 
 **This example is changed default options**
 ```
-todogotcha -root "./path/to/search/root/" \
+todogotcha -root="./path/to/search/root/" \
           -recursively=false \
           -trim=false \
-          -keyword "NOTE: " \
-          -line 2 \
-          -filetype ".cpp .py .txt .go .vim" \
-          -separator ";"
-          -dir "./path/to/dir1/;../path/to/dir2/" \
-          -file "./path/to/file1;../path/to/file2" \
+          -keyword="NOTE: " \
+          -line=2 \
+          -filetype=".cpp .py .txt .go .vim" \
+          -separator=";" \
+          -dir="./path/to/dir1/;../path/to/dir2/" \
+          -file="./path/to/file1;../path/to/file2" \
           -date=true \
-          -proc 1 \
+          -proc=1 \
           -result=true
 ```
 

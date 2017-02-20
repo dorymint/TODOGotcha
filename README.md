@@ -13,7 +13,7 @@ just like find, grep
 Output from `todogotcha`  
 ![gotcha](./gotcha.png "gotcha")  
 
-If you need make a list from function  
+List from "func "  
 `todogotcha -keyword "func " -trim=false`  
 ![gotcha2](./gotcha2.png "gotcha2")  
 
@@ -61,7 +61,7 @@ todogotcha -h
 | limit | Specify limit of goroutine, for file descriptor | 512 |
 | proc | Specify GOMAXPROCS(0 that means automatic) | 0 |
 
-**This example is changed default option**
+**This example is changed default options**
 ```
 todogotcha -root "./path/to/search/root/" \
           -recursively=false \

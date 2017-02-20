@@ -62,6 +62,7 @@ type Flags struct {
 	dirList     *string
 	separator   *string
 	recursively *bool
+	ignoreLong  *bool
 
 	// Flags for Output
 	output *string
@@ -96,6 +97,7 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("filetype=%q\n", *f.suffix)
 
 	tmp += fmt.Sprintf("recursively=%v\n", *f.recursively)
+	tmp += fmt.Sprintf("ignoreLong=%v\n", *f.ignoreLong)
 	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
 	tmp += fmt.Sprintf("date=%v\n", *f.date)
 	tmp += fmt.Sprintf("force=%v\n", *f.force)
@@ -128,6 +130,7 @@ var flags = Flags{
 	force:  flag.Bool("force", false, "Ignore override confirm [true:false]?"),
 
 	recursively: flag.Bool("recursively", true, `If this false, not recursive search from root [true:false]?`),
+	ignoreLong:  flag.Bool("longline", true, `Ignore file that haved long lines [true:false]?`),
 	result:      flag.Bool("result", false, "Output result for flags state [true:false]?"),
 	sort:        flag.Bool("sort", false, "Sort to-do list [true:false]?"),
 	date:        flag.Bool("date", false, "Date [true:false]?"),
@@ -340,6 +343,7 @@ func gather(filename string, flags Flags) (todoList []string) {
 			log.Printf("gather:%v", err)
 			return nil
 		}
+		if *flags.ignoreLong && len(sc.Text()) > 1024 { return nil }
 		if index := strings.Index(sc.Text(), *flags.keyword); index != -1 {
 			if *flags.trim {
 				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))

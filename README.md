@@ -53,7 +53,7 @@ todogotcha -h
 | output | Output filepath | "" |
 | force | Ignore override confirm [true:false]? | false |
 | recursively | Recursive search from root [true:false]? | true |
-| ignoreLong | If true ignore file that haved long lines [true:false]? | true |
+| ignoreLong | If true, ignore file that has long line [true:false]? | true |
 | result | Result for flags state [true:false]? | false |
 | sort | For output [true:false]? | false |
 | date | Add date [true:false]? | false |

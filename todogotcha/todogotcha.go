@@ -130,7 +130,7 @@ var flags = Flags{
 	force:  flag.Bool("force", false, "Ignore override confirm [true:false]?"),
 
 	recursively: flag.Bool("recursively", true, `If this false, not recursive search from root [true:false]?`),
-	ignoreLong:  flag.Bool("ignoreLong", true, `Ignore file that haved long lines [true:false]?`),
+	ignoreLong:  flag.Bool("ignoreLong", true, `Ignore file that has long line [true:false]?`),
 	result:      flag.Bool("result", false, "Output result for flags state [true:false]?"),
 	sort:        flag.Bool("sort", false, "Sort to-do list [true:false]?"),
 	date:        flag.Bool("date", false, "Date [true:false]?"),

@@ -343,6 +343,8 @@ func gather(filename string, flags Flags) (todoList []string) {
 			log.Printf("gather:%v", err)
 			return nil
 		}
+		// TODO: reconsider: return > continue, and limit length(1024) is ok?
+		//     : 2017/02/21 05:24
 		if *flags.ignoreLong && len(sc.Text()) > 1024 { return nil }
 		if index := strings.Index(sc.Text(), *flags.keyword); index != -1 {
 			if *flags.trim {

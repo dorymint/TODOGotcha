@@ -28,6 +28,7 @@ import (
 	"time"
 )
 
+// Close wrapper for log.Print
 func loggingFileClose(at string, f interface {
 	Close() error
 }) {
@@ -41,7 +42,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `
 Description
 	1, Search from current directory recursively
-	2, Create TODO List from search files
+	2, Create List from search files
 	3, Output to file or os.Stdout(default)
 `)
 	fmt.Fprintf(os.Stderr, `
@@ -92,11 +93,11 @@ type Flags struct {
 func (f Flags) String() string {
 	tmp := fmt.Sprintln("ALL FLAGS")
 	tmp += fmt.Sprintf("result=%v\n", *f.result)
-	tmp += fmt.Sprintf("root=%q\n", *f.root)
-	tmp += fmt.Sprintf("keywrod=%q\n", *f.keyword)
-	tmp += fmt.Sprintf("filetype=%q\n", *f.suffix)
+	tmp += fmt.Sprintf("root=%v\n", *f.root)
+	tmp += fmt.Sprintf("wrod=%v\n", *f.keyword)
+	tmp += fmt.Sprintf("type=%v\n", *f.suffix)
 
-	tmp += fmt.Sprintf("recursively=%v\n", *f.recursively)
+	tmp += fmt.Sprintf("recursive=%v\n", *f.recursively)
 	tmp += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
 	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
 	tmp += fmt.Sprintf("date=%v\n", *f.date)
@@ -104,47 +105,49 @@ func (f Flags) String() string {
 
 	tmp += fmt.Sprintf("output=%v\n", *f.output)
 
-	tmp += fmt.Sprintf("dirList=%q\n", *f.dirList)
-	tmp += fmt.Sprintf("fileList=%q\n", *f.fileList)
-	tmp += fmt.Sprintf("separator=%q\n", *f.separator)
+	tmp += fmt.Sprintf("dir=%v\n", *f.dirList)
+	tmp += fmt.Sprintf("file=%v\n", *f.fileList)
+	tmp += fmt.Sprintf("sep=%v\n", *f.separator)
 
 	tmp += fmt.Sprintf("trim=%v\n", *flags.trim)
-	tmp += fmt.Sprintf("line=%v\n", *flags.lines)
+	tmp += fmt.Sprintf("lines=%v\n", *flags.lines)
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
 	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
 	return tmp
-	// NOTE: string(``)と+""でまとめてもいいこのままで
+	// NOTE: まとめてもいいこのままで
 }
 
 // NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
 var flags = Flags{
-	root:    flag.String("root", "./", "Specify directory recursively-search root"),
-	suffix:  flag.String("filetype", ".go .txt", `Specify target file types`),
-	keyword: flag.String("keyword", "TODO: ", "Specify word for list"),
+	root:    flag.String("root", "./", "search root"),
+	suffix:  flag.String("type", ".go .txt", "search file types(suffix)"),
+	keyword: flag.String("word", "TODO: ", "search word"),
 
-	fileList:  flag.String("file", "", `Specify files`),
-	dirList:   flag.String("dir", "", `Specify search to directories, is not recursive`),
-	separator: flag.String("separator", ";", "Specify separator for Flags(dir and file)"),
+	fileList:  flag.String("file", "", `EXAMPLE -file="/path/to/file;/another/one"`),
+	dirList:   flag.String("dir", "", `EXAMPLE -dir="/path/to/dir/;/another/one/"`),
+	separator: flag.String("sep", ";", "separator for flags(-dir -file)"),
 
-	output: flag.String("output", "", "Specify output to filepath"),
-	force:  flag.Bool("force", false, "Ignore override confirm [true:false]?"),
+	output: flag.String("out", "", "specify output to filepath"),
+	force:  flag.Bool("force", false, "ignore override confirm [true:false]?"),
 
-	recursively: flag.Bool("recursively", true, `If this false, not recursive search from root [true:false]?`),
-	ignoreLong:  flag.Bool("ignore-long", true, `Ignore file that has long line [true:false]?`),
-	result:      flag.Bool("result", false, "Output result for flags state [true:false]?"),
-	sort:        flag.Bool("sort", false, "Sort to-do list [true:false]?"),
-	date:        flag.Bool("date", false, "Date [true:false]?"),
+	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
+	ignoreLong:  flag.Bool("ignore-long", true, "ignore file that has long line [true:false]?"),
+	result:      flag.Bool("result", false, "output state [true:false]?"),
+	sort:        flag.Bool("sort", false, "sort [true:false]?"),
+	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),
 
-	trim:  flag.Bool("trim", true, "Trim the keyword from output [true:false]?"),
-	lines: flag.Uint("line", 1, "Specify number of lines for gather"),
+	trim:  flag.Bool("trim", true, "trim the -word from output [true:false]?"),
+	lines: flag.Uint("lines", 1, "number of lines for gather"),
 
-	proc:  flag.Int("proc", 0, "Specify GOMAXPROCS"),
-	limit: flag.Uint("limit", 512, "Specify limit of goroutine, for limitation of file descriptor"),
+	proc:  flag.Int("proc", 0, "GOMAXPROCS"),
+	limit: flag.Uint("limit", 512, "limit of goroutine, for limitation of file descriptor"),
 }
 
-// TODO: init Reconsider, フラグ処理を入れてみたけどinitである必要は無いかも?
+// TODO: init Reconsider, フラグ処理を入れてみたけどinitである必要は?
 //     : flagsの処理はレシーバに切り出してまとめるべき,たぶん
 func init() {
+	log.SetOutput(os.Stderr)
+	log.SetPrefix("todogatcha: ")
 	// Parse and Unknown flags check
 	flag.Usage = usage
 	flag.Parse()
@@ -158,17 +161,16 @@ func init() {
 	}
 
 	if *flags.lines == 0 {
-		fmt.Fprintln(os.Stderr, "-line is require 1 line or more")
+		fmt.Fprintln(os.Stderr, "-lines is require 1 line or more")
 		os.Exit(1)
 	}
 
 	if *flags.root != "" {
-		tmp, err := filepath.Abs(*flags.root)
+		pathtmp, err := filepath.Abs(*flags.root)
 		if err != nil {
 			log.Fatalf("init:%v", err)
-		} else {
-			*flags.root = tmp
 		}
+		*flags.root = pathtmp
 	}
 
 	// For output filepath
@@ -183,12 +185,14 @@ func init() {
 				os.Exit(1)
 			}
 		}
-		// touch
+		// touch, override
 		tmp, err := os.Create(cleanpath)
 		if err != nil {
 			log.Fatalf("init:%v", err)
 		}
 		defer loggingFileClose("init", tmp)
+
+		// outpath
 		flags.data.outputFilePath = cleanpath
 	}
 
@@ -218,13 +222,12 @@ func init() {
 // Checking after parsing flags
 func argsCheck() {
 	if len(flag.Args()) != 0 {
-		fmt.Fprintf(os.Stderr, "cmd = %v\n\n", os.Args)
+		fmt.Fprintf(os.Stderr, "\ncommand=%v\n\n", os.Args)
 		fmt.Fprintf(os.Stderr, "-----| Unknown option |-----\n\n")
 		for _, x := range flag.Args() {
 			fmt.Fprintln(os.Stderr, x)
 		}
-		fmt.Fprintf(os.Stderr, "\n")
-		fmt.Fprintln(os.Stderr, "-----| Usage |-----")
+		fmt.Fprintln(os.Stderr, "\n-----| Flags |-----")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -326,7 +329,6 @@ func suffixSearcher(filename string, targetSuffix []string) bool {
 	return false
 }
 
-// シンプルでいい感じに見えるけど、goroutineで呼びまくると...(´・ω・`)っ"too many open files"
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
 func gather(filename string, flags Flags) (todoList []string) {
 	f, err := os.Open(filename)
@@ -343,9 +345,12 @@ func gather(filename string, flags Flags) (todoList []string) {
 			log.Printf("gather:%v", err)
 			return nil
 		}
-		// TODO: reconsider: return > continue, and limit length(1024) is ok?
+		// TODO: reconsider: replace(return >> continue), and limit length(1024) is ok?
 		//     : 2017/02/21 05:24
-		if *flags.ignoreLong && len(sc.Text()) > 1024 { return nil }
+		if *flags.ignoreLong && len(sc.Text()) > 1024 {
+			log.Printf("gather: too long line: %v", filename)
+			return nil
+		}
 		if index := strings.Index(sc.Text(), *flags.keyword); index != -1 {
 			if *flags.trim {
 				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))
@@ -358,10 +363,9 @@ func gather(filename string, flags Flags) (todoList []string) {
 			}
 		}
 		if tmpLineCount != 0 && tmpLineCount < *flags.lines {
-			// TODO: refactor
-			//todoList = append(todoList, fmt.Sprintf(" %s:%s", strings.Repeat(" ", len(fmt.Sprintf("%v", i))),  sc.Text()))
 			todoList = append(todoList, fmt.Sprintf(" %v:%s", i, sc.Text()))
 			tmpLineCount++
+			continue
 		} else {
 			tmpLineCount = 0
 		}
@@ -369,7 +373,6 @@ func gather(filename string, flags Flags) (todoList []string) {
 	return todoList
 }
 
-// にゃん
 // NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
 // goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
 func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMap map[string][]string) {
@@ -413,7 +416,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 				go worker(filepath.Join(dirname, info.Name()))
 
 				// NOTE: Countermove "too many open files"
-				// gophersLimiterの読み出しで値が不確定だけどこれは大体合ってれば問題ないはず
+				// gophersLimiterの読み出しで値が不確定... 大体合ってれば問題ないけど...
 				if gophersLimiter > gophersLimit/2 {
 					time.Sleep(time.Microsecond)
 				}

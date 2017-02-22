@@ -32,7 +32,7 @@ todogotcha
 
 If you need output to file
 ```
-todogotcha -output="./path/to/file"
+todogotcha -out="./path/to/file"
 ```
 
 ## Option

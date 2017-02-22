@@ -70,7 +70,7 @@ todogotcha -h
 | recursive | Recursive search from Flags(-root) [true:false]? | true |
 | ignore-long | If true, ignore file that has long line [true:false]? | true |
 | result | Result for flags state [true:false]? | false |
-| sort | For output [true:false]? | false |
+| sort | Sort by filepath [true:false]? | false |
 | date | Add date [true:false]? | false |
 | trim | Trim the keyword from output [true:false]? | true |
 | lines | Specify number of lines for gather from the -word | 1 |

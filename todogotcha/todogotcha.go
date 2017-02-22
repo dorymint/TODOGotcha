@@ -133,7 +133,7 @@ var flags = Flags{
 	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
 	ignoreLong:  flag.Bool("ignore-long", true, "ignore file that has long line [true:false]?"),
 	result:      flag.Bool("result", false, "output state [true:false]?"),
-	sort:        flag.Bool("sort", false, "sort [true:false]?"),
+	sort:        flag.Bool("sort", false, "sort by filepath [true:false]?"),
 	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),
 
 	trim:  flag.Bool("trim", true, "trim the -word from output [true:false]?"),

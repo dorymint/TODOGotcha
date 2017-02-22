@@ -76,6 +76,7 @@ todogotcha -h
 | -lines | Specify number of lines for gather | 1 |
 | -limit | Specify limit of goroutine, for file descriptor | 512 |
 | -proc | Specify GOMAXPROCS(0 that means automatic) | 0 |
+| -verbose | Output all log messages [true:false]? | false |
 
 **This example is changed default options**
 ```

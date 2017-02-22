@@ -66,11 +66,12 @@ type Flags struct {
 	ignoreLong  *bool
 
 	// Flags for Output
-	output *string
-	result *bool
-	force  *bool
-	sort   *bool
-	date   *bool
+	output  *string
+	result  *bool
+	force   *bool
+	sort    *bool
+	date    *bool
+	verbose *bool
 
 	trim  *bool
 	lines *uint
@@ -113,8 +114,9 @@ func (f Flags) String() string {
 	tmp += fmt.Sprintf("lines=%v\n", *flags.lines)
 	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
 	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
+	tmp += fmt.Sprintf("verbose=%v\n", *flags.verbose)
 	return tmp
-	// NOTE: まとめてもいいこのままで
+	// NOTE: とりあえずこのままで
 }
 
 // NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
@@ -139,19 +141,31 @@ var flags = Flags{
 	trim:  flag.Bool("trim", true, "trim the -word from output [true:false]?"),
 	lines: flag.Uint("lines", 1, "number of lines for gather"),
 
-	proc:  flag.Int("proc", 0, "GOMAXPROCS"),
-	limit: flag.Uint("limit", 512, "limit of goroutine, for limitation of file descriptor"),
+	proc:    flag.Int("proc", 0, "GOMAXPROCS"),
+	limit:   flag.Uint("limit", 512, "limit of goroutine, for limitation of file descriptor"),
+	verbose: flag.Bool("verbose", false, "Output all log massages [true:false]?"),
 }
 
 // TODO: init Reconsider, フラグ処理を入れてみたけどinitである必要は?
 //     : flagsの処理はレシーバに切り出してまとめるべき,たぶん
 func init() {
-	log.SetOutput(os.Stderr)
-	log.SetPrefix("todogatcha: ")
 	// Parse and Unknown flags check
 	flag.Usage = usage
 	flag.Parse()
 	argsCheck()
+
+	log.SetPrefix("todogatcha: ")
+	if *flags.verbose {
+		log.SetOutput(os.Stderr)
+	} else {
+		// is do not close
+		devnul, err := os.Open(os.DevNull)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		log.SetOutput(devnul)
+	}
 
 	runtime.GOMAXPROCS(*flags.proc)
 
@@ -168,7 +182,8 @@ func init() {
 	if *flags.root != "" {
 		pathtmp, err := filepath.Abs(*flags.root)
 		if err != nil {
-			log.Fatalf("init:%v", err)
+			fmt.Fprintf(os.Stderr, "init:%v", err)
+			os.Exit(1)
 		}
 		*flags.root = pathtmp
 	}
@@ -177,18 +192,20 @@ func init() {
 	if *flags.output != "" {
 		cleanpath, err := filepath.Abs(filepath.Clean(strings.TrimSpace(*flags.output)))
 		if err != nil {
-			log.Fatalf("init:%v", err)
+			fmt.Fprintf(os.Stderr, "init:%v", err)
+			os.Exit(1)
 		}
 		// Check override to specify output file
 		if _, errstat := os.Stat(cleanpath); errstat == nil && *flags.force == false {
 			if !ask(fmt.Sprintf("Override? %v", cleanpath)) {
-				os.Exit(1)
+				os.Exit(2)
 			}
 		}
 		// touch, override
 		tmp, err := os.Create(cleanpath)
 		if err != nil {
-			log.Fatalf("init:%v", err)
+			fmt.Fprintf(os.Stderr, "init:%v", err)
+			os.Exit(1)
 		}
 		defer loggingFileClose("init", tmp)
 
@@ -238,7 +255,8 @@ func ask(s string) bool {
 	fmt.Printf("[yes:no]? >>")
 	for sc, i := bufio.NewScanner(os.Stdin), 0; sc.Scan() && i < 2; i++ {
 		if sc.Err() != nil {
-			log.Fatal(sc.Err())
+			fmt.Fprintln(os.Stderr, sc.Err())
+			os.Exit(3)
 		}
 		switch sc.Text() {
 		case "yes":
@@ -489,7 +507,8 @@ func OutputTODOList(todoMap map[string][]string, flags Flags) {
 	if flags.data.outputFilePath != "" {
 		stdout, err = os.Create(flags.data.outputFilePath)
 		if err != nil {
-			log.Fatalf("OutputTODOList:%v", err)
+			fmt.Fprintf(os.Stderr, "OutputTODOList:%v", err)
+			os.Exit(2)
 		}
 		defer loggingFileClose("OutputTODOList", stdout)
 	}

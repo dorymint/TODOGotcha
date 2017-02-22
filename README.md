@@ -59,23 +59,23 @@ todogotcha -h
 
 | Flags | Description | Default |
 | :---- | :---------- | :------ |
-| root  | Search root | ./ |
-| type | Target filetypes(suffix) | ".go .txt" |
-| word | Target word | "TODO: " |
-| file | Specify target files | "" |
-| dir | Specify directory, is do not recursive | "" |
-| sep | Separator for Flags(-dir -file) | ; |
-| out | Output to filepath | "" |
-| force | Ignore override confirm for Flags(-out) [true:false]? | false |
-| recursive | Recursive search from Flags(-root) [true:false]? | true |
-| ignore-long | If true, ignore file that has long line [true:false]? | true |
-| result | Result for flags state [true:false]? | false |
-| sort | Sort by filepath [true:false]? | false |
-| date | Add date [true:false]? | false |
-| trim | Trim the keyword from output [true:false]? | true |
-| lines | Specify number of lines for gather | 1 |
-| limit | Specify limit of goroutine, for file descriptor | 512 |
-| proc | Specify GOMAXPROCS(0 that means automatic) | 0 |
+| -root  | Search root | ./ |
+| -type | Target filetypes(suffix) | ".go .txt" |
+| -word | Target word | "TODO: " |
+| -file | Specify target files | "" |
+| -dir | Specify directory, is do not recursive | "" |
+| -sep | Separator for Flags(-dir -file) | ; |
+| -out | Output to filepath | "" |
+| -force | Ignore override confirm for Flags(-out) [true:false]? | false |
+| -recursive | Recursive search from Flags(-root) [true:false]? | true |
+| -ignore-long | If true, ignore file that has long line [true:false]? | true |
+| -result | Result for flags state [true:false]? | false |
+| -sort | Sort by filepath [true:false]? | false |
+| -date | Add date [true:false]? | false |
+| -trim | Trim the keyword from output [true:false]? | true |
+| -lines | Specify number of lines for gather | 1 |
+| -limit | Specify limit of goroutine, for file descriptor | 512 |
+| -proc | Specify GOMAXPROCS(0 that means automatic) | 0 |
 
 **This example is changed default options**
 ```

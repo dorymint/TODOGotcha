@@ -429,16 +429,17 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 				wg.Add(1)
 				mux.Lock()
 				gophersLimiter++
+				// NOTE: countermove data race
+				tmpLimiter := gophersLimiter
 				mux.Unlock()
 
 				go worker(filepath.Join(dirname, info.Name()))
 
 				// NOTE: Countermove "too many open files"
-				// gophersLimiterの読み出しで値が不確定... 大体合ってれば問題ないけど...
-				if gophersLimiter > gophersLimit/2 {
+				if tmpLimiter > gophersLimit/2 {
 					time.Sleep(time.Microsecond)
 				}
-				if gophersLimiter > gophersLimit {
+				if tmpLimiter > gophersLimit {
 					log.Printf("Open files %v over, Do limitation to Gophers!!", gophersLimit)
 					log.Printf("Wait gophers...")
 					wg.Wait()

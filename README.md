@@ -14,7 +14,7 @@ Output from `todogotcha`
 ![gotcha](./gotcha.png "gotcha")  
 
 List from "func "  
-`todogotcha -word="func " -trim=false`  
+Output from `todogotcha -word="func " -trim=false`  
 ![gotcha2](./gotcha2.png "gotcha2")  
 
 ## Installation

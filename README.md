@@ -42,12 +42,12 @@ todogotcha -recursive=false
 
 If you need only specify directory
 ```
-todogotcha -recursive=false -root="/path/to/dir/"
+todogotcha -recursive=false -root="/path/to/dir/;/path/to/another/dir/"
 ```
 
-If you need specify files
+If you need specify file
 ```
-todogotcha -root="" -file="/path/to/file;/path/to/next/file"
+todogotcha -root="" -file="/path/to/file;/path/to/another/file"
 ```
 
 ## Option
@@ -64,10 +64,10 @@ todogotcha -h
 | word | Target word | "TODO: " |
 | file | Specify target files | "" |
 | dir | Specify directory list, is do not recursive | "" |
-| sep | separator for Flags(-dir and -file) | ; |
+| sep | Separator for Flags(-dir -file) | ; |
 | out | Output to filepath | "" |
-| force | Ignore override confirm [true:false]? | false |
-| recursive | Recursive search from root [true:false]? | true |
+| force | Ignore override confirm for Flags(-out) [true:false]? | false |
+| recursive | Recursive search from Flags(-root) [true:false]? | true |
 | ignore-long | If true, ignore file that has long line [true:false]? | true |
 | result | Result for flags state [true:false]? | false |
 | sort | For output [true:false]? | false |

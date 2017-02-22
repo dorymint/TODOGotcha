@@ -441,14 +441,16 @@ func GophersProc(flags Flags) (todoMap map[string][]string) {
 	infoMap := make(map[string][]os.FileInfo)
 
 	// For recursively switch
-	if *flags.recursively {
-		infoMap = dirsCrawl(*flags.root)
-	} else {
-		infos, err := getInfos(*flags.root)
-		if err != nil {
-			log.Printf("GophersProc:%v", err)
+	if *flags.root != "" {
+		if *flags.recursively {
+			infoMap = dirsCrawl(*flags.root)
 		} else {
-			infoMap[*flags.root] = infos
+			infos, err := getInfos(*flags.root)
+			if err != nil {
+				log.Printf("GophersProc:%v", err)
+			} else {
+				infoMap[*flags.root] = infos
+			}
 		}
 	}
 

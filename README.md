@@ -4,7 +4,7 @@
 
 Search from current directory recursively  
 Create to-do list from search files  
-Output the to-do list  
+Output to-do list, file or stdout  
 
 just like find, grep
 

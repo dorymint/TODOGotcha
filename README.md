@@ -14,7 +14,7 @@ Output from `todogotcha`
 ![gotcha](./gotcha.png "gotcha")  
 
 List from "func "  
-`todogotcha -keyword "func " -trim=false`  
+`todogotcha -word="func " -trim=false`  
 ![gotcha2](./gotcha2.png "gotcha2")  
 
 ## Installation
@@ -33,6 +33,21 @@ todogotcha
 If you need output to file
 ```
 todogotcha -out="./path/to/file"
+```
+
+If you need search from only pwd
+```
+todogotcha -recursive=false
+```
+
+If you need only specify directory
+```
+todogotcha -recursive=false -root="/path/to/dir/"
+```
+
+If you need specify files
+```
+todogotcha -root="" -file="/path/to/file;/path/to/next/file"
 ```
 
 ## Option

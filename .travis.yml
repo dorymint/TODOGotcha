@@ -2,8 +2,7 @@ language: go
 go:
   - 1.8
   - master
-befor_install:
+before_install:
   - go get github.com/dorymint/go-todogotcha/todogotcha
 script:
-  - go test -v ./todogotcha
-  - todogotcha -date -root ./t
+  - todogotcha -root ./t

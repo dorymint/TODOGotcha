@@ -6,3 +6,4 @@ before_install:
   - go get github.com/dorymint/go-todogotcha/todogotcha
 script:
   - todogotcha -root ./t
+  - todogotcha -root "" -file "./t/ignore-type.log;./t/hello.go"

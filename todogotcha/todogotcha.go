@@ -63,7 +63,7 @@ type Flags struct {
 	dirList     *string
 	separator   *string
 	recursively *bool
-	ignoreLong  *bool
+	ignoreLong  *int
 
 	// Flags for Output
 	output  *string
@@ -133,7 +133,7 @@ var flags = Flags{
 	force:  flag.Bool("force", false, "ignore override confirm [true:false]?"),
 
 	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
-	ignoreLong:  flag.Bool("ignore-long", true, "ignore file that has long line [true:false]?"),
+	ignoreLong:  flag.Int("ignore-long", 1024, "specify number of chars for ignore too long line"),
 	result:      flag.Bool("result", false, "output state [true:false]?"),
 	sort:        flag.Bool("sort", false, "sort by filepath [true:false]?"),
 	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),
@@ -363,9 +363,7 @@ func gather(filename string, flags Flags) (todoList []string) {
 			log.Printf("gather:%v", err)
 			return nil
 		}
-		// TODO: reconsider: replace(return >> continue), and limit length(1024) is ok?
-		//     : 2017/02/21 05:24
-		if *flags.ignoreLong && len(sc.Text()) > 1024 {
+		if *flags.ignoreLong > 0 && len(sc.Text()) > *flags.ignoreLong {
 			log.Printf("gather: too long line: %v", filename)
 			return nil
 		}

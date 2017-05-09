@@ -68,7 +68,7 @@ todogotcha -h
 | -out | Output to filepath | "" |
 | -force | Ignore override confirm for Flags(-out) [true:false]? | false |
 | -recursive | Recursive search from Flags(-root) [true:false]? | true |
-| -ignore-long | If true, ignore file that has long line [true:false]? | true |
+| -ignore-long | specify number of chars for ignore too long line | 1024 |
 | -result | Result for flags state [true:false]? | false |
 | -sort | Sort by filepath [true:false]? | false |
 | -date | Add date [true:false]? | false |

@@ -20,7 +20,7 @@ Output from `todogotcha -word="func " -trim=false`
 ## Installation
 ---
 ```
-go get github.com/dorymint/go-todogotcha/todogotcha
+go get github.com/kamisari/go-todogotcha/todogotcha
 ```
 
 ## Usage

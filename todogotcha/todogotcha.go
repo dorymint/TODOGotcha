@@ -101,7 +101,7 @@ func (f Flags) String() string {
 
 	tmp += fmt.Sprintf("recursive=%v\n", *f.recursively)
 	tmp += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
-	tmp += fmt.Sprintf("ignoreList=%v\n", *f.ignoreList)
+	tmp += fmt.Sprintf("ignorelist=%v\n", *f.ignoreList)
 	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
 	tmp += fmt.Sprintf("date=%v\n", *f.date)
 	tmp += fmt.Sprintf("force=%v\n", *f.force)
@@ -136,7 +136,7 @@ var flags = Flags{
 
 	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
 	ignoreLong:  flag.Int("ignore-long", 1024, "specify number of chars for ignore too long line"),
-	ignoreList:  flag.String("ignoreList", ".git:.cache:vender", "specify ignore directory, list separator is "+string(filepath.Separator)),
+	ignoreList:  flag.String("ignorelist", ".git:.cache:vender", "specify ignore directory, list separator is "+string(filepath.Separator)),
 	result:      flag.Bool("result", false, "output state [true:false]?"),
 	sort:        flag.Bool("sort", false, "sort by filepath [true:false]?"),
 	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),

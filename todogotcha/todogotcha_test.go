@@ -129,7 +129,7 @@ func TestDrisCrawl(t *testing.T) {
 	}
 
 	// Run
-	outInfosMap := dirsCrawl(TmpRoot)
+	outInfosMap := dirsCrawl(TmpRoot, []string{})
 
 	var expected []string
 	for _, infos := range expectedInfosMap {
@@ -152,7 +152,7 @@ func BenchmarkDirsCrawl(b *testing.B) {
 	flagsTest := flags
 	*flagsTest.root = TmpRoot
 	for i := 0; i < b.N; i++ {
-		_ = dirsCrawl(*flagsTest.root)
+		_ = dirsCrawl(*flagsTest.root, []string{})
 	}
 }
 
@@ -280,7 +280,7 @@ case empty keyword
 				t.Fatal(err)
 			}
 		}()
-		out := gather(filename, flagsTest)
+		out := gather(filename, *flagsTest.keyword, *flags.lines, *flags.trim, *flags.ignoreLong)
 		if !reflect.DeepEqual(data.expected, out) {
 			t.Error("not equal!")
 			t.Error("expected")
@@ -319,7 +319,7 @@ func TestUnlimitedGopherWorks(t *testing.T) {
 	// empty paturn
 	// TODO: Add another case
 	// pre request is dirsCrawl Green!
-	infomap := dirsCrawl(TmpRoot)
+	infomap := dirsCrawl(TmpRoot, []string{})
 
 	expected := make(map[string][]string)
 	out := unlimitedGopherWorks(infomap, flags)

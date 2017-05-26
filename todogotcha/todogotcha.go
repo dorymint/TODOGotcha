@@ -64,6 +64,7 @@ type Flags struct {
 	separator   *string
 	recursively *bool
 	ignoreLong  *int
+	ignoreList  *string
 
 	// Flags for Output
 	output  *string
@@ -100,6 +101,7 @@ func (f Flags) String() string {
 
 	tmp += fmt.Sprintf("recursive=%v\n", *f.recursively)
 	tmp += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
+	tmp += fmt.Sprintf("ignoreList=%v\n", *f.ignoreList)
 	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
 	tmp += fmt.Sprintf("date=%v\n", *f.date)
 	tmp += fmt.Sprintf("force=%v\n", *f.force)
@@ -134,6 +136,7 @@ var flags = Flags{
 
 	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
 	ignoreLong:  flag.Int("ignore-long", 1024, "specify number of chars for ignore too long line"),
+	ignoreList:  flag.String("ignoreList", ".git:.cache:vender", "specify ignore directory, list separator is "+string(filepath.Separator)),
 	result:      flag.Bool("result", false, "output state [true:false]?"),
 	sort:        flag.Bool("sort", false, "sort by filepath [true:false]?"),
 	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),
@@ -271,9 +274,18 @@ func ask(s string) bool {
 	return false
 }
 
+func isIgnore(dir string, ignoreList []string) bool {
+	for _, ignore := range ignoreList {
+		if dir == ignore {
+			return true
+		}
+	}
+	return false
+}
+
 // Use wait group dirsCrawl
 // Recursively search
-func dirsCrawl(root string) map[string][]os.FileInfo {
+func dirsCrawl(root string, ignoreList []string) map[string][]os.FileInfo {
 	// mux group
 	dirsCache := make(map[string]bool)
 	infoCache := make(map[string][]os.FileInfo)
@@ -285,6 +297,9 @@ func dirsCrawl(root string) map[string][]os.FileInfo {
 	crawl = func(dirname string) {
 		defer wg.Done()
 		infos := new([]os.FileInfo)
+		if isIgnore(filepath.Base(dirname), ignoreList) {
+			return
+		}
 
 		// NOTE: Countermove "too many open files"
 		mux.Lock()
@@ -348,7 +363,7 @@ func suffixSearcher(filename string, targetSuffix []string) bool {
 }
 
 // REMIND: todoListをchannelに変えてstringを投げるようにすれば数を制限したgoroutineが使えそう
-func gather(filename string, flags Flags) (todoList []string) {
+func gather(filename string, word string, addLines uint, trim bool, ignoreLineCounter int) (todoList []string) {
 	f, err := os.Open(filename)
 	if err != nil {
 		log.Printf("gather:%v", err)
@@ -363,13 +378,13 @@ func gather(filename string, flags Flags) (todoList []string) {
 			log.Printf("gather:%v", err)
 			return nil
 		}
-		if *flags.ignoreLong > 0 && len(sc.Text()) > *flags.ignoreLong {
+		if ignoreLineCounter > 0 && len(sc.Text()) > ignoreLineCounter {
 			log.Printf("gather: too long line: %v", filename)
 			return nil
 		}
-		if index := strings.Index(sc.Text(), *flags.keyword); index != -1 {
-			if *flags.trim {
-				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(*flags.keyword):]))
+		if index := strings.Index(sc.Text(), word); index != -1 {
+			if trim {
+				todoList = append(todoList, fmt.Sprintf("L%v:%s", i, sc.Text()[index+len(word):]))
 				tmpLineCount = 1
 				continue
 			} else {
@@ -378,7 +393,7 @@ func gather(filename string, flags Flags) (todoList []string) {
 				continue
 			}
 		}
-		if tmpLineCount != 0 && tmpLineCount < *flags.lines {
+		if tmpLineCount != 0 && tmpLineCount < addLines {
 			todoList = append(todoList, fmt.Sprintf(" %v:%s", i, sc.Text()))
 			tmpLineCount++
 			continue
@@ -413,7 +428,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 			mux.Unlock()
 		}()
 
-		todoList := gather(filepath, flags)
+		todoList := gather(filepath, *flags.keyword, *flags.lines, *flags.trim, *flags.ignoreLong)
 		if todoList != nil {
 			mux.Lock()
 			todoMap[filepath] = todoList
@@ -460,7 +475,7 @@ func GophersProc(flags Flags) (todoMap map[string][]string) {
 	// For recursively switch
 	if *flags.root != "" {
 		if *flags.recursively {
-			infoMap = dirsCrawl(*flags.root)
+			infoMap = dirsCrawl(*flags.root, filepath.SplitList(*flags.ignoreList))
 		} else {
 			infos, err := getInfos(*flags.root)
 			if err != nil {
@@ -489,7 +504,7 @@ func GophersProc(flags Flags) (todoMap map[string][]string) {
 	// For specify files
 	for _, s := range flags.data.file {
 		if _, ok := todoMap[s]; !ok {
-			todoList := gather(s, flags)
+			todoList := gather(s, *flags.keyword, *flags.lines, *flags.trim, *flags.ignoreLong)
 			if todoList != nil {
 				todoMap[s] = todoList
 			}

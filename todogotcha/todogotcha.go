@@ -28,6 +28,8 @@ import (
 	"time"
 )
 
+const version = "0.0.0"
+
 // Close wrapper for log.Print
 func loggingFileClose(at string, f interface {
 	Close() error
@@ -55,6 +57,8 @@ All flags
 // Flags for pkg name sort
 // TODO: Reconsider need for flags
 type Flags struct {
+	version *bool
+
 	// Flags for Data
 	root        *string
 	suffix      *string
@@ -94,6 +98,7 @@ type Flags struct {
 // For stringer, ALL flags
 func (f Flags) String() string {
 	tmp := fmt.Sprintln("ALL FLAGS")
+	tmp += fmt.Sprintf("version=%v\n", *f.version)
 	tmp += fmt.Sprintf("result=%v\n", *f.result)
 	tmp += fmt.Sprintf("root=%v\n", *f.root)
 	tmp += fmt.Sprintf("wrod=%v\n", *f.keyword)
@@ -123,6 +128,7 @@ func (f Flags) String() string {
 
 // NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
 var flags = Flags{
+	version: flag.Bool("version", false, ""),
 	root:    flag.String("root", "./", "search root"),
 	suffix:  flag.String("type", ".go .txt", "search file types(suffix)"),
 	keyword: flag.String("word", "TODO: ", "search word"),
@@ -156,6 +162,11 @@ func init() {
 	flag.Usage = usage
 	flag.Parse()
 	argsCheck()
+
+	if *flags.version {
+		fmt.Printf("version %s\n", version)
+		os.Exit(0)
+	}
 
 	log.SetPrefix("todogatcha: ")
 	if *flags.verbose {

@@ -1,6 +1,6 @@
 language: go
 go:
-  - 1.8
+  - 1.8.3
   - master
 before_install:
   - go get github.com/kamisari/go-todogotcha/todogotcha

@@ -142,7 +142,7 @@ var flags = Flags{
 
 	recursively: flag.Bool("recursive", true, "recursive search from -root [true:false]?"),
 	ignoreLong:  flag.Int("ignore-long", 1024, "specify number of chars for ignore too long line"),
-	ignoreList:  flag.String("ignorelist", ".git:.cache:vender", "specify ignore directory, list separator is "+string(filepath.Separator)),
+	ignoreList:  flag.String("ignorelist", ".git:.cache:vendor", "specify ignore directory, list separator is "+string(filepath.Separator)),
 	result:      flag.Bool("result", false, "output state [true:false]?"),
 	sort:        flag.Bool("sort", false, "sort by filepath [true:false]?"),
 	date:        flag.Bool("date", false, "EXAMPLE -date=true ...append date to output [true:false]?"),

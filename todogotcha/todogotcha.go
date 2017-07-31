@@ -1,19 +1,5 @@
 package main
 
-// TODO: エラーログの吐き方 error buffer 作って溜めてリザルトで吐く?
-//     : 複数のgoroutineが同じロガーに同時にアクセスしてもlogがよろしくやってくれるのか調べてない
-//     : 普通に考えたら裏で常に走りながらチャンネルで待ち受けてそうだけどどうだろう
-//     : pkgのsrcみると大丈夫そう
-// NOTE: flagに直接触れるのは init, main, に限定する
-//     : 出来るだけファイル一枚で書いてみる
-//     : ファイル一枚に詰めながら処理は独立するように気をつける
-//     : initでフラグとstickyなデータの初期化を任せてflagのエラー処理を省く
-//     : goroutineいっぱい使ってみたい
-
-// TODO: Refactor, フラグにくっついてるflag.dataの初期化をinitからレシーバに切り出す
-
-// TODO: Review, To simple
-
 import (
 	"bufio"
 	"flag"
@@ -29,15 +15,6 @@ import (
 )
 
 const version = "0.0.0"
-
-// Close wrapper for log.Print
-func loggingFileClose(at string, f interface {
-	Close() error
-}) {
-	if err := f.Close(); err != nil {
-		log.Printf("%s:%v", at, err)
-	}
-}
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
@@ -221,7 +198,7 @@ func init() {
 			fmt.Fprintf(os.Stderr, "init:%v", err)
 			os.Exit(1)
 		}
-		defer loggingFileClose("init", tmp)
+		defer tmp.Close()
 
 		// outpath
 		flags.data.outputFilePath = cleanpath
@@ -355,7 +332,7 @@ func getInfos(dirname string) ([]os.FileInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getInfos:%v", err)
 	}
-	defer loggingFileClose("getInfos", f)
+	defer f.Close()
 
 	infos, err := f.Readdir(0)
 	if err != nil {
@@ -380,7 +357,7 @@ func gather(filename string, word string, addLines uint, trim bool, ignoreLineCo
 		log.Printf("gather:%v", err)
 		return nil
 	}
-	defer loggingFileClose("gather", f)
+	defer f.Close()
 
 	sc := bufio.NewScanner(f)
 	tmpLineCount := uint(0)
@@ -535,7 +512,7 @@ func OutputTODOList(todoMap map[string][]string, flags Flags) {
 			fmt.Fprintf(os.Stderr, "OutputTODOList:%v", err)
 			os.Exit(2)
 		}
-		defer loggingFileClose("OutputTODOList", stdout)
+		defer stdout.Close()
 	}
 
 	// For sort

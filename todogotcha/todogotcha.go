@@ -16,21 +16,6 @@ import (
 
 const version = "0.0.0"
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
-	fmt.Fprintf(os.Stderr, `
-Description
-	1, Search from current directory recursively
-	2, Create List from search files
-	3, Output to file or os.Stdout(default)
-`)
-	fmt.Fprintf(os.Stderr, `
-All flags
-`)
-	flag.PrintDefaults()
-	os.Exit(1)
-}
-
 // Flags for pkg name sort
 // TODO: Reconsider need for flags
 type Flags struct {
@@ -136,7 +121,6 @@ var flags = Flags{
 //     : flagsの処理はレシーバに切り出してまとめるべき,たぶん
 func init() {
 	// Parse and Unknown flags check
-	flag.Usage = usage
 	flag.Parse()
 	argsCheck()
 

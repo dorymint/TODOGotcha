@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -16,12 +17,10 @@ import (
 
 const version = "0.0.0"
 
-// Flags for pkg name sort
-// TODO: Reconsider need for flags
 type Flags struct {
 	version *bool
 
-	// Flags for Data
+	// Flags for make Data
 	root        *string
 	suffix      *string
 	keyword     *string
@@ -59,37 +58,35 @@ type Flags struct {
 
 // For stringer, ALL flags
 func (f Flags) String() string {
-	tmp := fmt.Sprintln("ALL FLAGS")
-	tmp += fmt.Sprintf("version=%v\n", *f.version)
-	tmp += fmt.Sprintf("result=%v\n", *f.result)
-	tmp += fmt.Sprintf("root=%v\n", *f.root)
-	tmp += fmt.Sprintf("wrod=%v\n", *f.keyword)
-	tmp += fmt.Sprintf("type=%v\n", *f.suffix)
+	str := fmt.Sprintln("ALL FLAGS")
+	str += fmt.Sprintf("version=%v\n", *f.version)
+	str += fmt.Sprintf("result=%v\n", *f.result)
+	str += fmt.Sprintf("root=%v\n", *f.root)
+	str += fmt.Sprintf("wrod=%v\n", *f.keyword)
+	str += fmt.Sprintf("type=%v\n", *f.suffix)
 
-	tmp += fmt.Sprintf("recursive=%v\n", *f.recursively)
-	tmp += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
-	tmp += fmt.Sprintf("ignorelist=%v\n", *f.ignoreList)
-	tmp += fmt.Sprintf("sort=%v\n", *f.sort)
-	tmp += fmt.Sprintf("date=%v\n", *f.date)
-	tmp += fmt.Sprintf("force=%v\n", *f.force)
+	str += fmt.Sprintf("recursive=%v\n", *f.recursively)
+	str += fmt.Sprintf("ignore-long=%v\n", *f.ignoreLong)
+	str += fmt.Sprintf("ignorelist=%v\n", *f.ignoreList)
+	str += fmt.Sprintf("sort=%v\n", *f.sort)
+	str += fmt.Sprintf("date=%v\n", *f.date)
+	str += fmt.Sprintf("force=%v\n", *f.force)
 
-	tmp += fmt.Sprintf("output=%v\n", *f.output)
+	str += fmt.Sprintf("output=%v\n", *f.output)
 
-	tmp += fmt.Sprintf("dir=%v\n", *f.dirList)
-	tmp += fmt.Sprintf("file=%v\n", *f.fileList)
-	tmp += fmt.Sprintf("sep=%v\n", *f.separator)
+	str += fmt.Sprintf("dir=%v\n", *f.dirList)
+	str += fmt.Sprintf("file=%v\n", *f.fileList)
+	str += fmt.Sprintf("sep=%v\n", *f.separator)
 
-	tmp += fmt.Sprintf("trim=%v\n", *flags.trim)
-	tmp += fmt.Sprintf("lines=%v\n", *flags.lines)
-	tmp += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
-	tmp += fmt.Sprintf("limit=%v\n", *flags.limit)
-	tmp += fmt.Sprintf("verbose=%v\n", *flags.verbose)
-	return tmp
-	// NOTE: とりあえずこのままで
+	str += fmt.Sprintf("trim=%v\n", *flags.trim)
+	str += fmt.Sprintf("lines=%v\n", *flags.lines)
+	str += fmt.Sprintf("proc=%v\n", runtime.GOMAXPROCS(0))
+	str += fmt.Sprintf("limit=%v\n", *flags.limit)
+	str += fmt.Sprintf("verbose=%v\n", *flags.verbose)
+	return str
 }
 
-// NOTE: goはこの書き方でもファイル内限定のstaticっぽい扱い
-var flags = Flags{
+var flags = &Flags{
 	version: flag.Bool("version", false, ""),
 	root:    flag.String("root", "./", "search root"),
 	suffix:  flag.String("type", ".go .txt", "search file types(suffix)"),
@@ -122,7 +119,16 @@ var flags = Flags{
 func init() {
 	// Parse and Unknown flags check
 	flag.Parse()
-	argsCheck()
+	if len(flag.Args()) != 0 {
+		fmt.Fprintf(os.Stderr, "\ncommand=%v\n\n", os.Args)
+		fmt.Fprintf(os.Stderr, "-----| Unknown option |-----\n\n")
+		for _, x := range flag.Args() {
+			fmt.Fprintln(os.Stderr, x)
+		}
+		fmt.Fprintln(os.Stderr, "\n-----| Flags |-----")
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 
 	if *flags.version {
 		fmt.Printf("version %s\n", version)
@@ -133,13 +139,7 @@ func init() {
 	if *flags.verbose {
 		log.SetOutput(os.Stderr)
 	} else {
-		// is do not close
-		devnul, err := os.Open(os.DevNull)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
-		log.SetOutput(devnul)
+		log.SetOutput(ioutil.Discard)
 	}
 
 	runtime.GOMAXPROCS(*flags.proc)
@@ -155,12 +155,12 @@ func init() {
 	}
 
 	if *flags.root != "" {
-		pathtmp, err := filepath.Abs(*flags.root)
+		fullpath, err := filepath.Abs(*flags.root)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "init:%v", err)
 			os.Exit(1)
 		}
-		*flags.root = pathtmp
+		*flags.root = fullpath
 	}
 
 	// For output filepath
@@ -208,20 +208,6 @@ func init() {
 	}
 	if *flags.dirList != "" {
 		pathClean(&flags.data.dir, flags.dirList)
-	}
-}
-
-// Checking after parsing flags
-func argsCheck() {
-	if len(flag.Args()) != 0 {
-		fmt.Fprintf(os.Stderr, "\ncommand=%v\n\n", os.Args)
-		fmt.Fprintf(os.Stderr, "-----| Unknown option |-----\n\n")
-		for _, x := range flag.Args() {
-			fmt.Fprintln(os.Stderr, x)
-		}
-		fmt.Fprintln(os.Stderr, "\n-----| Flags |-----")
-		flag.PrintDefaults()
-		os.Exit(1)
 	}
 }
 
@@ -376,15 +362,13 @@ func gather(filename string, word string, addLines uint, trim bool, ignoreLineCo
 	return todoList
 }
 
-// NOTE: gopher増やしまくるとcloseが間に合わなくてosのfile descriptor上限に突っかかる
-// goroutine にリミットを付けてファイルオープンを制限して上限に引っかからない様にしてみる
-func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMap map[string][]string) {
+func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags *Flags) (todoMap map[string][]string) {
 
 	todoMap = make(map[string][]string)
 
 	// NOTE: Countermove "too many open files"!!
 	// TODO: 出来れば (descriptor limits / 2) で値を決めたい
-	// 環境依存のリミットを取得する良い方法を見つけてない(´・ω・`)
+	// 環境依存のリミットを取得する良い方法を見つけてない
 	gophersLimit := *flags.limit // NOTE: This Limit is require (Limit < file descriptor limits)
 	var gophersLimiter uint
 
@@ -441,7 +425,7 @@ func unlimitedGopherWorks(infoMap map[string][]os.FileInfo, flags Flags) (todoMa
 }
 
 // GophersProc generate TODOMap from file list! gatcha!!
-func GophersProc(flags Flags) (todoMap map[string][]string) {
+func GophersProc(flags *Flags) (todoMap map[string][]string) {
 	infoMap := make(map[string][]os.FileInfo)
 
 	// For recursively switch
@@ -486,7 +470,7 @@ func GophersProc(flags Flags) (todoMap map[string][]string) {
 }
 
 // OutputTODOList is output crawl results
-func OutputTODOList(todoMap map[string][]string, flags Flags) {
+func OutputTODOList(todoMap map[string][]string, flags *Flags) {
 	// For Specify output file
 	stdout := os.Stdout
 	var err error

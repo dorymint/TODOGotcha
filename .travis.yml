@@ -1,11 +1,11 @@
 language: go
 go:
   - 1.8.3
-  - master
+  - 1.9.2
 sudo: false
 before_install:
   - go get github.com/kamisari/go-todogotcha/todogotcha
 script:
   - go test -v -race ./todogotcha
   - todogotcha -root ./t
-  - todogotcha -root "" -file "./t/ignore-type.log;./t/hello.go"
+  - todogotcha -root "" -file "./t/ignore-type.log:./t/hello.go"

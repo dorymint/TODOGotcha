@@ -8,7 +8,7 @@ import (
 func TestFuture(t *testing.T) {
 	buf := bytes.NewBuffer([]byte{})
 	errbuf := bytes.NewBuffer([]byte{})
-	opt := &option{ root: "", }
+	opt := &option{ root: "t", }
 	runWithGoroutine(buf,errbuf, opt)
 	t.Log(buf, errbuf)
 }

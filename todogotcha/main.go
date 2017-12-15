@@ -15,7 +15,7 @@ import (
 	"sync"
 )
 
-const version = "0.0.0rc1"
+const version = "0.0.1rc1"
 
 // exit code
 const (
@@ -203,6 +203,7 @@ func (g *gotcha) gather(path string) *gotchaMap {
 			}
 		}
 	} else {
+		// discard
 		pushNextLines = func() {}
 	}
 
@@ -232,7 +233,7 @@ func (g *gotcha) workGo(root string) (exitCode int) {
 		errch       = make(chan error, 128)
 	)
 
-	// TODO: consider really need?
+	// TODO: consider really need? goCounter
 	var (
 		goCounter = uint(0)
 		done      = make(chan bool)
@@ -243,16 +244,18 @@ func (g *gotcha) workGo(root string) (exitCode int) {
 		}
 	}()
 
-	// TODO: fix NWorker, use flag?
+	// TODO: nWorker use flag?
 	var nWorker = func() int {
 		n := runtime.NumCPU()
+		// really need?
 		if n <= 0 {
 			return 1
 		}
 		return n
 	}()
 
-	// TODO: consider scope out
+	// TODO: consider error handling
+	//     : maybe discard some errors
 	// error handler
 	goCounter++
 	go func() {
@@ -354,6 +357,11 @@ func (g *gotcha) workGo(root string) (exitCode int) {
 }
 
 func run(w, errw io.Writer, opt *option) int {
+	if opt.version {
+		fmt.Fprintln(w, "todogotha version "+version)
+		return ValidExit
+	}
+
 	fullpath, err := filepath.Abs(opt.root)
 	if err != nil {
 		fmt.Fprintln(errw, err)
@@ -369,9 +377,7 @@ func run(w, errw io.Writer, opt *option) int {
 		return m
 	}
 	g := &gotcha{
-		// TODO: consider to delete
-		m: make(map[string][]string),
-
+		m:              make(map[string][]string),
 		root:           opt.root,
 		match:          opt.word,
 		abort:          opt.abort,
@@ -385,13 +391,11 @@ func run(w, errw io.Writer, opt *option) int {
 
 		log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
 	}
-	if opt.version {
-		fmt.Fprintln(w, "todogotha version "+version)
-		return ValidExit
-	}
+
 	if opt.verbose {
 		g.log.SetOutput(errw)
 	}
+
 	if opt.out != "" {
 		if _, err := os.Stat(opt.out); os.IsExist(err) && !opt.force {
 			fmt.Fprintln(errw, "file exists: ", opt.out)

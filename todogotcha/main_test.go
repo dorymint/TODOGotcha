@@ -13,6 +13,8 @@ func TestRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// TODO: add cases
 	tests := []struct {
 		opt *option
 		exp string

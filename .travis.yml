@@ -7,5 +7,3 @@ before_install:
   - go get github.com/kamisari/go-todogotcha/todogotcha
 script:
   - go test -v -race ./todogotcha
-  - todogotcha -root ./t
-  - todogotcha -root "" -file "./t/ignore-type.log:./t/hello.go"

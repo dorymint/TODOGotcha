@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,7 +15,8 @@ import (
 )
 
 type gotcha struct {
-	m map[string][]string
+	w   io.Writer
+	log *log.Logger
 
 	// options
 	root           string
@@ -26,11 +28,12 @@ type gotcha struct {
 
 	// TODO: consider
 	maxRune int
-	add     uint
+	add     uint64
 	trim    bool
 	abort   bool
 
-	log *log.Logger
+	ncontents uint64
+	nfiles    uint64
 }
 
 func (g *gotcha) isTarget(path string) bool {
@@ -47,73 +50,55 @@ func (g *gotcha) isTarget(path string) bool {
 	return g.typesMap[ext]
 }
 
-func (g *gotcha) NContents() uint {
-	ui := uint(0)
-	for _, c := range g.m {
-		ui += uint(len(c))
-	}
-	return ui
-}
-
-// consider String()
-func (g *gotcha) String() string {
-	var result string
-	for path, strs := range g.m {
-		if len(strs) == 0 {
-			continue
-		}
-		result += fmt.Sprintln(path)
-		for _, str := range strs {
-			result += fmt.Sprintln(str)
-		}
-		result += fmt.Sprintln()
-	}
-	return result
-}
-
 // TODO: consider name
-type gotchaMap struct {
+type gatherRes struct {
 	path     string
 	contents []string
 	err      error
 }
 
-func (gm *gotchaMap) Error() string { return fmt.Sprintf("%v:%v", gm.err.Error(), gm.path) }
+func (gr *gatherRes) Error() string {
+	if gr.err == ErrHaveTooLongLine {
+		return gr.err.Error() + ":" + gr.path
+	}
+	return gr.err.Error()
+}
 
 // ErrHaveTooLongLine read limit of over
 var ErrHaveTooLongLine = errors.New("have too long line")
 
-func isTooLong(err error) bool {
-	switch err.(type) {
-	case *gotchaMap:
-		return true
+// IsTooLong check ErrHaveTooLongLine
+func IsTooLong(err error) bool {
+	switch e := err.(type) {
+	case *gatherRes:
+		return e.err == ErrHaveTooLongLine
 	}
 	return false
 }
 
-func (g *gotcha) gather(path string) *gotchaMap {
-	gm := &gotchaMap{path: path}
+func (g *gotcha) gather(path string) *gatherRes {
+	gr := &gatherRes{path: path}
 	var f *os.File
-	f, gm.err = os.Open(path)
-	if gm.err != nil {
-		return gm
+	f, gr.err = os.Open(path)
+	if gr.err != nil {
+		return gr
 	}
 	defer f.Close()
 
 	sc := bufio.NewScanner(f)
 	index := -1
-	lineCount := uint(1) // TODO: consider to zero
-	addCount := uint(0)
+	lineCount := uint64(1) // TODO: consider to zero
+	addCount := uint64(0)
 
 	var push func()
 	if g.trim {
 		push = func() {
-			gm.contents = append(gm.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()[index+len(g.word):]))
+			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()[index+len(g.word):]))
 			addCount = 1
 		}
 	} else {
 		push = func() {
-			gm.contents = append(gm.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()))
+			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()))
 			addCount = 1
 		}
 	}
@@ -122,7 +107,7 @@ func (g *gotcha) gather(path string) *gotchaMap {
 	if g.add != 0 {
 		pushNextLines = func() {
 			if addCount != 0 && addCount <= g.add {
-				gm.contents = append(gm.contents, fmt.Sprintf(" %v:%s", lineCount, sc.Text()))
+				gr.contents = append(gr.contents, fmt.Sprintf(" %v:%s", lineCount, sc.Text()))
 				addCount++
 			} else {
 				addCount = 0
@@ -134,12 +119,12 @@ func (g *gotcha) gather(path string) *gotchaMap {
 	}
 
 	for ; sc.Scan(); lineCount++ {
-		if gm.err = sc.Err(); gm.err != nil {
-			return gm
+		if gr.err = sc.Err(); gr.err != nil {
+			return gr
 		}
 		if g.maxRune > 0 && len(sc.Text()) > g.maxRune {
-			gm.err = ErrHaveTooLongLine
-			return gm
+			gr.err = ErrHaveTooLongLine
+			return gr
 		}
 		if index = strings.Index(sc.Text(), g.word); index != -1 {
 			push()
@@ -147,24 +132,25 @@ func (g *gotcha) gather(path string) *gotchaMap {
 		}
 		pushNextLines()
 	}
-	return gm
+	return gr
 }
 
 // TODO: implementation syncWorkGo
 
 // make map on async
 func (g *gotcha) WorkGo(root string) (exitCode int) {
+	// queue -> gatherQueue -> res
 	var (
 		wg          = new(sync.WaitGroup)
 		queue       = make(chan string, 512)
 		gatherQueue = make(chan string, 512)
-		res         = make(chan *gotchaMap, 512)
+		res         = make(chan *gatherRes, 512)
 		errch       = make(chan error, 128)
 	)
 
 	// TODO: consider really need? goCounter
 	var (
-		goCounter = uint(0)
+		goCounter = uint64(0)
 		done      = make(chan bool)
 	)
 	defer func() {
@@ -174,17 +160,17 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 	}()
 
 	// TODO: addWorker use flag?
-	addWorker := func() uint {
+	addWorker := func() uint64 {
 		n := runtime.NumCPU() / 2
 		if n < 0 {
 			return 0
 		}
-		return uint(n)
+		return uint64(n)
 	}()
 
+	// error handler
 	// TODO: consider error handling
 	//     : this is maybe discard some errors
-	// error handler
 	goCounter++
 	go func() {
 		for {
@@ -195,12 +181,13 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 					exitCode = 1 // TODO: consider exitCode
 					switch {
 					case g.abort:
-						panic(err) // TODO: consider not use panic
-					case os.IsPermission(err) || os.IsNotExist(err) || isTooLong(err):
+						g.log.Fatal(err) // TODO: consider not use panic
+					case IsTooLong(err), os.IsPermission(err), os.IsNotExist(err):
 						g.log.Println(err)
 						continue
 					default:
-						panic(err) // TODO: consider not use panic
+						g.log.Fatalln("unknown error:", err)
+						//panic(err) // TODO: consider not use panic
 					}
 				}
 			case <-done:
@@ -210,7 +197,7 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 	}()
 
 	// woker
-	for i := uint(0); i <= addWorker; i++ {
+	for i := uint64(0); i <= addWorker; i++ {
 		goCounter++
 		go func() {
 			for {
@@ -224,21 +211,26 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 		}()
 	}
 
-	// push result
+	// res with write
 	goCounter++
 	go func() {
 		for {
 			select {
-			case gm := <-res:
-				// TODO: consider handling of case gm == nil
-				if gm == nil {
-					wg.Done()
-					continue
-				}
-				if gm.err != nil {
-					errch <- gm
-				} else {
-					g.m[gm.path] = gm.contents
+			case gr := <-res:
+				switch {
+				case gr.err != nil:
+					if gr.err == ErrHaveTooLongLine {
+						errch <- gr
+					} else {
+						errch <- gr.err
+					}
+				case len(gr.contents) != 0:
+					_, err := fmt.Fprintln(g.w, gr.path+"\n"+strings.Join(gr.contents, "\n")+"\n")
+					if err != nil {
+						errch <- err
+					}
+					g.nfiles++
+					g.ncontents += uint64(len(gr.contents))
 				}
 				wg.Done()
 			case <-done:
@@ -263,6 +255,7 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 					path := filepath.Join(dir, info.Name())
 					switch {
 					case info.IsDir() && !g.ignoreDirsMap[info.Name()]:
+						// TODO: consider another way
 						wg.Add(1)
 						go func(path string) { queue <- path }(path)
 						continue
@@ -285,8 +278,8 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 	return exitCode
 }
 
-// TODO: consider syncWorkGo
-func (g *gotcha) syncWorkGo(root string) error {
+// TODO: consider SyncWorkGo
+func (g *gotcha) SyncWorkGo(root string) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -295,24 +288,26 @@ func (g *gotcha) syncWorkGo(root string) error {
 			return filepath.SkipDir
 		}
 		if info.Mode().IsRegular() && g.isTarget(info.Name()) {
-			gm := g.gather(path)
-			if gm.err != nil {
+			gr := g.gather(path)
+			if gr.err != nil {
 				switch {
 				case g.abort:
-					panic(gm.err) // TODO: consider not use panic
-				case isTooLong(gm):
-					g.log.Println(gm)
-					return nil
-				case os.IsPermission(gm.err) || os.IsNotExist(gm.err):
-					g.log.Println(gm.err)
-					return nil
+					g.log.Fatal(gr.err) // TODO: consider not use panic
+				case IsTooLong(gr):
+					g.log.Print(gr)
+				case os.IsPermission(gr.err) || os.IsNotExist(gr.err):
+					g.log.Print(gr.err)
 				default:
-					panic(gm) // TODO: consider not use panic
+					g.log.Print(gr.err) // TODO: consider not use panic
 				}
-			} else {
-				g.m[gm.path] = gm.contents
+				return nil
+			}
+			if len(gr.contents) != 0 {
+				_, err = fmt.Fprintln(g.w, gr.path+"\n"+strings.Join(gr.contents, "\n")+"\n")
+				g.nfiles++
+				g.ncontents += uint64(len(gr.contents))
 			}
 		}
-		return nil
+		return err
 	})
 }

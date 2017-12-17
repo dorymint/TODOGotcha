@@ -11,14 +11,13 @@ import (
 	"strings"
 )
 
-const version = "0.1.0rc1"
+const version = "0.0.0rc2"
 
 // exit code
 const (
 	ValidExit = iota
 	ErrInitialize
-	ErrMakeData
-	ErrOutput
+	ErrRun
 )
 
 type option struct {
@@ -37,11 +36,10 @@ type option struct {
 	ignoreTypes string
 
 	trim bool
-	add  uint
+	add  uint64
 
 	maxRune int
 
-	// debug
 	sync bool
 }
 
@@ -80,13 +78,12 @@ func init() {
 	flag.StringVar(&opt.ignoreTypes, "ignore-types", strings.Join(IgnoreTypes, sep), "specify ignore file types. separator is '"+sep+"'")
 
 	flag.BoolVar(&opt.trim, "trim", false, "trim the word on output")
-	flag.UintVar(&opt.add, "add", 0, "specify number of lines of after find the word")
+	flag.Uint64Var(&opt.add, "add", 0, "specify number of lines of after find the word")
 
-	flag.IntVar(&opt.maxRune, "max", 512, "specify characters limit")
+	flag.IntVar(&opt.maxRune, "max", 256, "specify characters limit")
 	flag.BoolVar(&opt.verbose, "verbose", false, "output of log messages")
 	flag.BoolVar(&opt.abort, "abort", false, "if exists errors then abort process")
 
-	/// debug
 	flag.BoolVar(&opt.sync, "sync", false, "for debug: run on sync")
 }
 
@@ -103,33 +100,6 @@ func run(w, errw io.Writer, opt *option) int {
 	}
 	opt.root = fullpath
 
-	makeBoolMap := func(list string) map[string]bool {
-		m := make(map[string]bool)
-		for _, s := range filepath.SplitList(list) {
-			m[s] = true
-		}
-		return m
-	}
-	g := &gotcha{
-		m:              make(map[string][]string),
-		root:           opt.root,
-		word:           opt.word,
-		abort:          opt.abort,
-		typesMap:       makeBoolMap(opt.types),
-		ignoreDirsMap:  makeBoolMap(opt.ignoreDirs),
-		ignoreFilesMap: makeBoolMap(opt.ignoreFiles),
-		ignoreTypesMap: makeBoolMap(opt.ignoreTypes),
-
-		maxRune: opt.maxRune,
-		add:     opt.add,
-
-		log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
-	}
-
-	if opt.verbose {
-		g.log.SetOutput(errw)
-	}
-
 	if opt.out != "" {
 		if _, err := os.Stat(opt.out); os.IsExist(err) && !opt.force {
 			fmt.Fprintln(errw, "file exists: ", opt.out)
@@ -144,34 +114,51 @@ func run(w, errw io.Writer, opt *option) int {
 		w = f
 	}
 
-	// TODO: consider sync, async and sort
-	if opt.sync {
-		err := g.syncWorkGo(opt.root)
-		if err != nil && !os.IsPermission(err) && !os.IsNotExist(err) && isTooLong(err) {
-			switch {
-			case os.IsPermission(err), os.IsNotExist(err), isTooLong(err):
-				// pass
-			default:
-				fmt.Fprintln(errw, err)
-				return ErrMakeData
-			}
+	makeBoolMap := func(list string) map[string]bool {
+		m := make(map[string]bool)
+		for _, s := range filepath.SplitList(list) {
+			m[s] = true
 		}
-	} else {
-		exitCode := g.WorkGo(opt.root)
-		if exitCode != ValidExit && g.abort {
-			return ErrMakeData
-		}
+		return m
+	}
+	g := &gotcha{
+		w: w,
+
+		root:           opt.root,
+		word:           opt.word,
+		abort:          opt.abort,
+		typesMap:       makeBoolMap(opt.types),
+		ignoreDirsMap:  makeBoolMap(opt.ignoreDirs),
+		ignoreFilesMap: makeBoolMap(opt.ignoreFiles),
+		ignoreTypesMap: makeBoolMap(opt.ignoreTypes),
+
+		maxRune: opt.maxRune,
+		add:     opt.add,
+
+		log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
+	}
+	if opt.verbose {
+		g.log.SetOutput(errw)
 	}
 
-	_, err = fmt.Fprint(w, g)
+	var exitCode int
+	if opt.sync {
+		err := g.SyncWorkGo(opt.root)
+		if err != nil {
+			fmt.Fprint(errw, err)
+			exitCode = ErrRun
+		}
+	} else {
+		exitCode = g.WorkGo(opt.root)
+	}
 	if opt.total {
-		_, err = fmt.Fprintf(w, "files %d\ncontents %d\n", len(g.m), g.NContents())
+		_, err = fmt.Fprintf(w, "files %d\nlines %d\n", g.nfiles, g.ncontents)
+		if err != nil {
+			fmt.Fprint(errw, err)
+			exitCode = ErrRun
+		}
 	}
-	if err != nil {
-		fmt.Fprintln(errw, err)
-		return ErrOutput
-	}
-	return ValidExit
+	return exitCode
 }
 
 func main() {

@@ -215,13 +215,13 @@ func (g *Gotcha) WorkGo(root string, nworker uint64) (exitCode int) {
 					exitCode = 1 // TODO: consider exitCode
 					switch {
 					case g.Abort:
-						g.Log.Fatal(err) // TODO: consider not use panic
+						g.Log.Fatal(err) // TODO: consider
 					case IsTooLong(err), os.IsPermission(err), os.IsNotExist(err):
 						g.Log.Println(err)
 						continue
 					default:
 						g.Log.Fatalln("unknown error:", err)
-						//panic(err) // TODO: consider not use panic
+						//panic(err) // TODO: consider
 					}
 				}
 			case <-done:

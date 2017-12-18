@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -15,38 +15,37 @@ func TestGather(t *testing.T) {
 
 	tests := []struct {
 		in      string
-		exp     string
+		exp     []string
 		wanterr bool
 	}{
-		{in: "hi", exp: ""},
-		{in: "TODO: hi", exp: "L1:TODO: hi\n"},
-		{in: "TODO: hello\nTODO: world\n", exp: "L1:TODO: hello\nL2:TODO: world\n"},
+		{in: "hi", exp: nil},
+		{in: "TODO: hi", exp: []string{"L1:TODO: hi"}},
+		{in: "TODO: hello\nTODO: world\n", exp: []string{"L1:TODO: hello", "L2:TODO: world"}},
 	}
 
-	g := &gotcha{word: "TODO: "}
-	buf := bytes.NewBufferString("")
+	g := NewGotcha()
 	for i, test := range tests {
 		t.Logf("[Case %d Start]", i)
 		if err := ioutil.WriteFile(path, []byte(test.in), 0777); err != nil {
 			t.Fatal(err)
 		}
-		if err := g.gatherWithBuffer(buf, path); err != nil {
+		res := g.gather(path)
+		if res.err != nil {
 			switch {
 			case test.wanterr:
-				t.Logf("[Wanterr]:%v", err)
+				t.Logf("[Log err]:%#v", res.err)
 			default:
-				t.Error(err)
+				t.Errorf("[Unexpected error]:%#v", res.err)
 			}
 			continue
 		}
-		if buf.String() != test.exp {
-			t.Error("[Compare Error]")
-			t.Errorf("[exp]:%s", test.exp)
-			t.Errorf("[out]:%s", buf)
+		if reflect.DeepEqual(res.contents, test.exp) {
+			t.Logf("[Log res]:%#v", res)
 		} else {
-			t.Logf("[Log]:%s", buf)
+			t.Error("[Compare Error]")
+			t.Errorf("[exp]:%#v", test.exp)
+			t.Errorf("[out]:%#v", res.contents)
 		}
-		buf.Reset()
 		t.Logf("[Case %d END]", i)
 	}
 }

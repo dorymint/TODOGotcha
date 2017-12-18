@@ -1,17 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-const version = "0.0.0rc2"
+const version = "0.0.0rc3"
 
 // exit code
 const (
@@ -30,7 +29,10 @@ type option struct {
 	force   bool
 	total   bool
 
-	types       string
+	// specify target file types
+	types string
+
+	// ignores
 	ignoreDirs  string
 	ignoreFiles string
 	ignoreTypes string
@@ -40,7 +42,9 @@ type option struct {
 
 	maxRune int
 
-	sync bool
+	nworker uint64
+	sync    bool
+	cache   bool
 }
 
 var opt = &option{}
@@ -84,36 +88,59 @@ func init() {
 	flag.BoolVar(&opt.verbose, "verbose", false, "output of log messages")
 	flag.BoolVar(&opt.abort, "abort", false, "if exists errors then abort process")
 
+	flag.Uint64Var(&opt.nworker, "nworker", 0, "specify limitation of goriutine")
 	flag.BoolVar(&opt.sync, "sync", false, "for debug: run on sync")
+	flag.BoolVar(&opt.cache, "cache", false, "use data cache")
 }
 
-func run(w, errw io.Writer, opt *option) int {
+func run(w, errw io.Writer, opt *option) (exitCode int) {
+	// version
 	if opt.version {
 		fmt.Fprintln(w, "todogotcha version "+version)
-		return ValidExit
+		return
 	}
 
+	// abs for root
 	fullpath, err := filepath.Abs(opt.root)
 	if err != nil {
 		fmt.Fprintln(errw, err)
-		return ErrInitialize
+		exitCode = ErrInitialize
+		return
 	}
 	opt.root = fullpath
 
+	// out to file
 	if opt.out != "" {
 		if _, err := os.Stat(opt.out); os.IsExist(err) && !opt.force {
 			fmt.Fprintln(errw, "file exists: ", opt.out)
-			return ErrInitialize
+			exitCode = ErrInitialize
+			return
 		}
 		f, err := os.Create(opt.out)
 		if err != nil {
 			fmt.Fprintln(errw, err)
-			return ErrInitialize
+			exitCode = ErrInitialize
+			return
 		}
 		defer f.Close()
 		w = f
 	}
 
+	// use buffer
+	if opt.cache {
+		orgiw := w
+		buf := bytes.NewBufferString("")
+		w = buf
+		defer func() {
+			_, err := fmt.Fprintln(orgiw, w)
+			if err != nil {
+				fmt.Fprintln(errw, err)
+				exitCode = ErrRun
+			}
+		}()
+	}
+
+	/// init Gotcha
 	makeBoolMap := func(list string) map[string]bool {
 		m := make(map[string]bool)
 		for _, s := range filepath.SplitList(list) {
@@ -121,27 +148,21 @@ func run(w, errw io.Writer, opt *option) int {
 		}
 		return m
 	}
-	g := &gotcha{
-		w: w,
-
-		root:           opt.root,
-		word:           opt.word,
-		abort:          opt.abort,
-		typesMap:       makeBoolMap(opt.types),
-		ignoreDirsMap:  makeBoolMap(opt.ignoreDirs),
-		ignoreFilesMap: makeBoolMap(opt.ignoreFiles),
-		ignoreTypesMap: makeBoolMap(opt.ignoreTypes),
-
-		maxRune: opt.maxRune,
-		add:     opt.add,
-
-		log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
-	}
+	g := NewGotcha()
+	g.W = w
+	g.Word = opt.word
+	g.Abort = opt.abort
+	g.TypesMap = makeBoolMap(opt.types)
+	g.IgnoreDirsMap = makeBoolMap(opt.ignoreDirs)
+	g.IgnoreFilesMap = makeBoolMap(opt.ignoreFiles)
+	g.IgnoreTypesMap = makeBoolMap(opt.ignoreTypes)
+	g.MaxRune = opt.maxRune
+	g.Add = opt.add
 	if opt.verbose {
-		g.log.SetOutput(errw)
+		g.Log.SetOutput(errw)
 	}
 
-	var exitCode int
+	// sync or async
 	if opt.sync {
 		err := g.SyncWorkGo(opt.root)
 		if err != nil {
@@ -149,16 +170,18 @@ func run(w, errw io.Writer, opt *option) int {
 			exitCode = ErrRun
 		}
 	} else {
-		exitCode = g.WorkGo(opt.root)
+		exitCode = g.WorkGo(opt.root, opt.nworker)
 	}
+
+	// append total
 	if opt.total {
-		_, err = fmt.Fprintf(w, "files %d\nlines %d\n", g.nfiles, g.ncontents)
+		_, err = g.PrintTotal()
 		if err != nil {
 			fmt.Fprint(errw, err)
 			exitCode = ErrRun
 		}
 	}
-	return exitCode
+	return
 }
 
 func main() {

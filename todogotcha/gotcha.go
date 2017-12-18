@@ -14,40 +14,74 @@ import (
 	"sync"
 )
 
-type gotcha struct {
-	w   io.Writer
-	log *log.Logger
+// Gotcha for search recursive
+type Gotcha struct {
+	W   io.Writer
+	Log *log.Logger
 
 	// options
-	root           string
-	word           string
-	typesMap       map[string]bool
-	ignoreDirsMap  map[string]bool
-	ignoreFilesMap map[string]bool
-	ignoreTypesMap map[string]bool
+	Word           string
+	TypesMap       map[string]bool
+	IgnoreDirsMap  map[string]bool
+	IgnoreFilesMap map[string]bool
+	IgnoreTypesMap map[string]bool
 
 	// TODO: consider
-	maxRune int
-	add     uint64
-	trim    bool
-	abort   bool
+	MaxRune int
+	Add     uint64
+	Trim    bool
+	Abort   bool
 
-	ncontents uint64
-	nfiles    uint64
+	nfiles uint64
+	nlines uint64
 }
 
-func (g *gotcha) isTarget(path string) bool {
-	if g.ignoreFilesMap[path] {
+// NewGotcha allocation for Gotcha
+func NewGotcha() *Gotcha {
+	makeBoolMap := func(list []string) map[string]bool {
+		m := make(map[string]bool)
+		for _, s := range list {
+			m[s] = true
+		}
+		return m
+	}
+	return &Gotcha{
+		W:   os.Stdout,
+		Log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
+
+		Word:           "TODO: ",
+		TypesMap:       make(map[string]bool),
+		IgnoreDirsMap:  makeBoolMap(IgnoreDirs),
+		IgnoreFilesMap: makeBoolMap(IgnoreFiles),
+		IgnoreTypesMap: makeBoolMap(IgnoreTypes),
+
+		MaxRune: 512,
+		Add:     0,
+		Trim:    false,
+		Abort:   false,
+
+		nfiles: 0,
+		nlines: 0,
+	}
+}
+
+// PrintTotal prnt nfiles and ncontents
+func (g *Gotcha) PrintTotal() (int, error) {
+	return fmt.Fprintf(g.W, "files %d\nlines %d\n", g.nfiles, g.nlines)
+}
+
+func (g *Gotcha) isTarget(path string) bool {
+	if g.IgnoreFilesMap[path] {
 		return false
 	}
 	ext := filepath.Ext(path)
-	if g.ignoreTypesMap[ext] {
+	if g.IgnoreTypesMap[ext] {
 		return false
 	}
-	if len(g.typesMap) == 0 {
+	if len(g.TypesMap) == 0 {
 		return true
 	}
-	return g.typesMap[ext]
+	return g.TypesMap[ext]
 }
 
 // TODO: consider name
@@ -76,7 +110,7 @@ func IsTooLong(err error) bool {
 	return false
 }
 
-func (g *gotcha) gather(path string) *gatherRes {
+func (g *Gotcha) gather(path string) *gatherRes {
 	gr := &gatherRes{path: path}
 	var f *os.File
 	f, gr.err = os.Open(path)
@@ -91,9 +125,9 @@ func (g *gotcha) gather(path string) *gatherRes {
 	addCount := uint64(0)
 
 	var push func()
-	if g.trim {
+	if g.Trim {
 		push = func() {
-			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()[index+len(g.word):]))
+			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()[index+len(g.Word):]))
 			addCount = 1
 		}
 	} else {
@@ -104,9 +138,9 @@ func (g *gotcha) gather(path string) *gatherRes {
 	}
 
 	var pushNextLines func()
-	if g.add != 0 {
+	if g.Add != 0 {
 		pushNextLines = func() {
-			if addCount != 0 && addCount <= g.add {
+			if addCount != 0 && addCount <= g.Add {
 				gr.contents = append(gr.contents, fmt.Sprintf(" %v:%s", lineCount, sc.Text()))
 				addCount++
 			} else {
@@ -122,11 +156,11 @@ func (g *gotcha) gather(path string) *gatherRes {
 		if gr.err = sc.Err(); gr.err != nil {
 			return gr
 		}
-		if g.maxRune > 0 && len(sc.Text()) > g.maxRune {
+		if g.MaxRune > 0 && len(sc.Text()) > g.MaxRune {
 			gr.err = ErrHaveTooLongLine
 			return gr
 		}
-		if index = strings.Index(sc.Text(), g.word); index != -1 {
+		if index = strings.Index(sc.Text(), g.Word); index != -1 {
 			push()
 			continue
 		}
@@ -135,10 +169,8 @@ func (g *gotcha) gather(path string) *gatherRes {
 	return gr
 }
 
-// TODO: implementation syncWorkGo
-
-// make map on async
-func (g *gotcha) WorkGo(root string) (exitCode int) {
+// WorkGo run on async
+func (g *Gotcha) WorkGo(root string, nworker uint64) (exitCode int) {
 	// queue -> gatherQueue -> res
 	var (
 		wg          = new(sync.WaitGroup)
@@ -159,14 +191,16 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 		}
 	}()
 
-	// TODO: addWorker use flag?
-	addWorker := func() uint64 {
-		n := runtime.NumCPU() / 2
-		if n < 0 {
-			return 0
-		}
-		return uint64(n)
-	}()
+	// TODO: consider
+	if nworker == 0 {
+		nworker = func() uint64 {
+			n := runtime.NumCPU() / 2
+			if n < 0 {
+				return 0
+			}
+			return uint64(n)
+		}()
+	}
 
 	// error handler
 	// TODO: consider error handling
@@ -180,13 +214,13 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 				if err != nil {
 					exitCode = 1 // TODO: consider exitCode
 					switch {
-					case g.abort:
-						g.log.Fatal(err) // TODO: consider not use panic
+					case g.Abort:
+						g.Log.Fatal(err) // TODO: consider not use panic
 					case IsTooLong(err), os.IsPermission(err), os.IsNotExist(err):
-						g.log.Println(err)
+						g.Log.Println(err)
 						continue
 					default:
-						g.log.Fatalln("unknown error:", err)
+						g.Log.Fatalln("unknown error:", err)
 						//panic(err) // TODO: consider not use panic
 					}
 				}
@@ -197,7 +231,7 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 	}()
 
 	// woker
-	for i := uint64(0); i <= addWorker; i++ {
+	for i := uint64(0); i <= nworker; i++ {
 		goCounter++
 		go func() {
 			for {
@@ -225,12 +259,12 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 						errch <- gr.err
 					}
 				case len(gr.contents) != 0:
-					_, err := fmt.Fprintln(g.w, gr.path+"\n"+strings.Join(gr.contents, "\n")+"\n")
+					_, err := fmt.Fprintf(g.W, "%s\n%s\n\n", gr.path, strings.Join(gr.contents, "\n"))
 					if err != nil {
 						errch <- err
 					}
 					g.nfiles++
-					g.ncontents += uint64(len(gr.contents))
+					g.nlines += uint64(len(gr.contents))
 				}
 				wg.Done()
 			case <-done:
@@ -254,7 +288,7 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 				for _, info := range infos {
 					path := filepath.Join(dir, info.Name())
 					switch {
-					case info.IsDir() && !g.ignoreDirsMap[info.Name()]:
+					case info.IsDir() && !g.IgnoreDirsMap[info.Name()]:
 						// TODO: consider another way
 						wg.Add(1)
 						go func(path string) { queue <- path }(path)
@@ -278,34 +312,34 @@ func (g *gotcha) WorkGo(root string) (exitCode int) {
 	return exitCode
 }
 
-// TODO: consider SyncWorkGo
-func (g *gotcha) SyncWorkGo(root string) error {
+// SyncWorkGo run on sync
+func (g *Gotcha) SyncWorkGo(root string) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() && g.ignoreDirsMap[info.Name()] {
+		if info.IsDir() && g.IgnoreDirsMap[info.Name()] {
 			return filepath.SkipDir
 		}
 		if info.Mode().IsRegular() && g.isTarget(info.Name()) {
 			gr := g.gather(path)
 			if gr.err != nil {
 				switch {
-				case g.abort:
-					g.log.Fatal(gr.err) // TODO: consider not use panic
+				case g.Abort:
+					g.Log.Fatal(gr.err) // TODO: consider not use panic
 				case IsTooLong(gr):
-					g.log.Print(gr)
+					g.Log.Print(gr)
 				case os.IsPermission(gr.err) || os.IsNotExist(gr.err):
-					g.log.Print(gr.err)
+					g.Log.Print(gr.err)
 				default:
-					g.log.Print(gr.err) // TODO: consider not use panic
+					g.Log.Print(gr.err) // TODO: consider not use panic
 				}
 				return nil
 			}
 			if len(gr.contents) != 0 {
-				_, err = fmt.Fprintln(g.w, gr.path+"\n"+strings.Join(gr.contents, "\n")+"\n")
+				_, err = fmt.Fprintf(g.W, "%s\n%s\n\n", gr.path, strings.Join(gr.contents, "\n"))
 				g.nfiles++
-				g.ncontents += uint64(len(gr.contents))
+				g.nlines += uint64(len(gr.contents))
 			}
 		}
 		return err

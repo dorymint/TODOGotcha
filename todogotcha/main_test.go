@@ -3,21 +3,38 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-var tpath = func() string {
-	tpath, err := filepath.Abs("t")
+var TPath = func() string {
+	TPath, err := filepath.Abs("t")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	return tpath
+	return TPath
 }()
 
+func TestMain(m *testing.M) {
+	err := os.MkdirAll(filepath.Join(TPath, "d"), 0777)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	defer os.Exit(code)
+	os.RemoveAll(TPath)
+}
+
 func TestRun(t *testing.T) {
+	err := ioutil.WriteFile(filepath.Join(TPath, "d", "hello.txt"), []byte("TODO: hello"), 0777)
+	err = ioutil.WriteFile(filepath.Join(TPath, "hello.go"), []byte("// TODO: hello from go source"), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// TODO: add cases
 	tests := []struct {
 		opt *option
@@ -28,14 +45,14 @@ func TestRun(t *testing.T) {
 			exp: "todogotcha version " + version + "\n",
 		},
 		{
-			opt: &option{root: filepath.Join(tpath, "d")},
-			exp: string(filepath.Join(tpath, "d", "hello.txt")+"\n") +
+			opt: &option{root: filepath.Join(TPath, "d")},
+			exp: string(filepath.Join(TPath, "d", "hello.txt")+"\n") +
 				"L1:TODO: hello\n" +
 				"\n",
 		},
 		{
-			opt: &option{root: tpath, types: ".go"},
-			exp: string(filepath.Join(tpath, "hello.go")+"\n") +
+			opt: &option{root: TPath, types: ".go"},
+			exp: string(filepath.Join(TPath, "hello.go")+"\n") +
 				"L1:// TODO: hello from go source\n" +
 				"\n",
 		},

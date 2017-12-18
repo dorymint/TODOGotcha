@@ -7,4 +7,4 @@ before_install:
   - go get github.com/kamisari/go-todogotcha/todogotcha
   - cd todogotcha
 script:
-  - go test -v -race ./todogotcha
+  - go test -v -race

@@ -6,5 +6,5 @@ sudo: false
 before_install:
   - go get github.com/kamisari/go-todogotcha/todogotcha
 script:
-  - go test -v -race ./todogotcha
+  - go test -v -race -cover ./todogotcha
   - todogotcha -root ./todogotcha -verbose

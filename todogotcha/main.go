@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const version = "0.2.0rc3"
+const version = "0.3.0rc3"
 
 // exit code
 const (
@@ -68,7 +68,7 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&opt.version, "version", false, "print version")
+	flag.BoolVar(&opt.version, "version", false, "print version "+`"`+version+`"`)
 	flag.StringVar(&opt.root, "root", "", "specify search root directory")
 	flag.StringVar(&opt.word, "word", "TODO: ", "specify search word")
 	flag.StringVar(&opt.out, "out", "", "specify output file")

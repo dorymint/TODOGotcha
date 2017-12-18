@@ -25,7 +25,7 @@ func TestRun(t *testing.T) {
 	}{
 		{
 			opt: &option{version: true},
-			exp: "gotcha version " + version + "\n",
+			exp: "todogotcha version " + version + "\n",
 		},
 		{
 			opt: &option{root: filepath.Join(tpath, "d")},

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const version = "0.1.0rc3"
+const version = "0.2.0rc3"
 
 // exit code
 const (
@@ -34,7 +34,7 @@ type option struct {
 
 	// ignores
 	ignoreDirs  string
-	ignoreFiles string
+	ignoreBases string
 	ignoreTypes string
 
 	trim bool
@@ -56,7 +56,7 @@ var (
 		".git",
 		".cache",
 	}
-	IgnoreFiles = []string{}
+	IgnoreBases = []string{}
 	IgnoreTypes = []string{
 		".pgp", ".ttf", ".pdf",
 		".jpg", ".jpeg", ".png", ".ico", ".gif",
@@ -78,7 +78,7 @@ func init() {
 	sep := string(filepath.ListSeparator)
 	flag.StringVar(&opt.types, "types", "", "specify filetypes. separator is '"+sep+"'")
 	flag.StringVar(&opt.ignoreDirs, "ignore-dirs", strings.Join(IgnoreDirs, sep), "specify ignore directories. separator is '"+sep+"'")
-	flag.StringVar(&opt.ignoreFiles, "ignore-files", strings.Join(IgnoreFiles, sep), "specify ignore files. separator is '"+sep+"'")
+	flag.StringVar(&opt.ignoreBases, "ignore-Bases", strings.Join(IgnoreBases, sep), "specify ignore Bases. separator is '"+sep+"'")
 	flag.StringVar(&opt.ignoreTypes, "ignore-types", strings.Join(IgnoreTypes, sep), "specify ignore file types. separator is '"+sep+"'")
 
 	flag.BoolVar(&opt.trim, "trim", false, "trim the word on output")
@@ -96,7 +96,7 @@ func init() {
 func run(w, errw io.Writer, opt *option) (exitCode int) {
 	// version
 	if opt.version {
-		fmt.Fprintln(w, "gotcha version "+version)
+		fmt.Fprintln(w, "todogotcha version "+version)
 		return
 	}
 
@@ -154,7 +154,7 @@ func run(w, errw io.Writer, opt *option) (exitCode int) {
 	g.Abort = opt.abort
 	g.TypesMap = makeBoolMap(opt.types)
 	g.IgnoreDirsMap = makeBoolMap(opt.ignoreDirs)
-	g.IgnoreFilesMap = makeBoolMap(opt.ignoreFiles)
+	g.IgnoreBasesMap = makeBoolMap(opt.ignoreBases)
 	g.IgnoreTypesMap = makeBoolMap(opt.ignoreTypes)
 	g.MaxRune = opt.maxRune
 	g.Add = opt.add

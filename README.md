@@ -7,16 +7,16 @@ TODO: update readme
 ## Installation
 ---------------
 ```
-go get github.com/kamisari/go-todogotcha/gotcha
+go get github.com/kamisari/go-todogotcha/todogotcha
 ```
 
 ## Example
 ----------
-- `gotcha` recursive check on current directory
-- `gotcha /path/dir` or `gotcha -root /path/dir` specify root
-- `gotcha -word "NOTE: "` specify target word, default is "TODO: "
-- `gotcha -help` print the help
-- `gotcha -out /path/log` specify output to file
+- `todogotcha` recursive check on current directory
+- `todogotcha /path/dir` or `todogotcha -root /path/dir` specify root
+- `todogotcha -word "NOTE: "` specify target word, default is "TODO: "
+- `todogotcha -help` print the help
+- `todogotcha -out /path/log` specify output to file
 
 ## Licence
 ----------

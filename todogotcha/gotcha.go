@@ -23,7 +23,7 @@ type Gotcha struct {
 	Word           string
 	TypesMap       map[string]bool
 	IgnoreDirsMap  map[string]bool
-	IgnoreFilesMap map[string]bool
+	IgnoreBasesMap map[string]bool
 	IgnoreTypesMap map[string]bool
 
 	// TODO: consider
@@ -47,12 +47,12 @@ func NewGotcha() *Gotcha {
 	}
 	return &Gotcha{
 		W:   os.Stdout,
-		Log: log.New(ioutil.Discard, "[gotcha]:", log.Lshortfile),
+		Log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
 
 		Word:           "TODO: ",
 		TypesMap:       make(map[string]bool),
 		IgnoreDirsMap:  makeBoolMap(IgnoreDirs),
-		IgnoreFilesMap: makeBoolMap(IgnoreFiles),
+		IgnoreBasesMap: makeBoolMap(IgnoreBases),
 		IgnoreTypesMap: makeBoolMap(IgnoreTypes),
 
 		MaxRune: 512,
@@ -71,7 +71,7 @@ func (g *Gotcha) PrintTotal() (int, error) {
 }
 
 func (g *Gotcha) isTarget(path string) bool {
-	if g.IgnoreFilesMap[path] {
+	if g.IgnoreBasesMap[path] {
 		return false
 	}
 	ext := filepath.Ext(path)

@@ -78,7 +78,7 @@ func init() {
 	sep := string(filepath.ListSeparator)
 	flag.StringVar(&opt.types, "types", "", "specify filetypes. separator is '"+sep+"'")
 	flag.StringVar(&opt.ignoreDirs, "ignore-dirs", strings.Join(IgnoreDirs, sep), "specify ignore directories. separator is '"+sep+"'")
-	flag.StringVar(&opt.ignoreBases, "ignore-Bases", strings.Join(IgnoreBases, sep), "specify ignore Bases. separator is '"+sep+"'")
+	flag.StringVar(&opt.ignoreBases, "ignore-bases", strings.Join(IgnoreBases, sep), "specify ignore basenames. separator is '"+sep+"'")
 	flag.StringVar(&opt.ignoreTypes, "ignore-types", strings.Join(IgnoreTypes, sep), "specify ignore file types. separator is '"+sep+"'")
 
 	flag.BoolVar(&opt.trim, "trim", false, "trim the word on output")

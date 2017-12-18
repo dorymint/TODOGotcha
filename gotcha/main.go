@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const version = "0.0.0rc3"
+const version = "0.1.0rc3"
 
 // exit code
 const (
@@ -96,7 +96,7 @@ func init() {
 func run(w, errw io.Writer, opt *option) (exitCode int) {
 	// version
 	if opt.version {
-		fmt.Fprintln(w, "todogotcha version "+version)
+		fmt.Fprintln(w, "gotcha version "+version)
 		return
 	}
 

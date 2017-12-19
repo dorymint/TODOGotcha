@@ -1,4 +1,4 @@
-# todogotcha
+# gotcha
 ------------
 cli tool for gathering of "TODO: " from files
 
@@ -6,17 +6,17 @@ cli tool for gathering of "TODO: " from files
 ## Installation
 ---------------
 ```
-go get github.com/kamisari/go-todogotcha/todogotcha
+go get github.com/kamisari/go-todogotcha/gotcha
 ```
 
 ## Example
 ----------
-- `todogotcha` recursive check from current directory
-- `todogotcha /path/dir` or `todogotcha -root /path/dir` specify root
-- `todogotcha -word "func "` specify target word, default is "TODO: "
-- `todogotcha -out /path/log` specify output to file
+- `gotcha` recursive check from current directory
+- `gotcha /path/dir` or `gotcha -root /path/dir` specify root
+- `gotcha -word "func "` specify target word, default is "TODO: "
+- `gotcha -out /path/log` specify output to file
 
-- `todogotcha -help` print help
+- `gotcha -help` print help
 
 ## TODO
 -------

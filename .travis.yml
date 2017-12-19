@@ -4,7 +4,7 @@ go:
   - 1.9.2
 sudo: false
 before_install:
-  - go get github.com/kamisari/go-todogotcha/todogotcha
+  - go get github.com/kamisari/go-todogotcha/gotcha
 script:
-  - go test -v -race -cover ./todogotcha
-  - todogotcha -root ./todogotcha -verbose
+  - go test -v -race -cover ./gotcha
+  - gotcha -root ./gotcha -verbose

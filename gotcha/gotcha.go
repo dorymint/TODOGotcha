@@ -47,7 +47,7 @@ func NewGotcha() *Gotcha {
 	}
 	return &Gotcha{
 		W:   os.Stdout,
-		Log: log.New(ioutil.Discard, "[todogotcha]:", log.Lshortfile),
+		Log: log.New(ioutil.Discard, "["+name+"]:", log.Lshortfile),
 
 		Word:           "TODO: ",
 		TypesMap:       make(map[string]bool),

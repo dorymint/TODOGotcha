@@ -61,6 +61,7 @@ var (
 	}
 	IgnoreBases = []string{}
 	IgnoreTypes = []string{
+		".log", ".prof",
 		".pgp", ".ttf", ".pdf",
 		".jpg", ".jpeg", ".png", ".ico", ".gif",
 		".mp4",

@@ -14,7 +14,7 @@ import (
 
 // version and cmd name
 const (
-	Version = "0.0.0rc4"
+	Version = "0.0.1rc4"
 	Name    = "gotcha"
 )
 

@@ -273,7 +273,7 @@ func (g *Gotcha) WorkGo(root string, nworker uint) (exitCode int) {
 			case gr := <-res:
 				if err := gr.Fwrite(g.W); err != nil {
 					errch <- err
-				} else {
+				} else if len(gr.contents) != 0 {
 					g.nfiles++
 					g.nlines += uint(len(gr.contents))
 				}
@@ -346,8 +346,10 @@ func (g *Gotcha) SyncWorkGo(root string) error {
 				}
 				return nil
 			}
-			g.nfiles++
-			g.nlines += uint(len(gr.contents))
+			if len(gr.contents) != 0 {
+				g.nfiles++
+				g.nlines += uint(len(gr.contents))
+			}
 		}
 		return nil
 	})

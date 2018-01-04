@@ -46,7 +46,7 @@ func TestRun(t *testing.T) {
 		return &topt
 	}
 
-	// TODO: consider to split to subtests
+	// TODO: consider to split to subtests and add many cases
 	t.Run("valid exit", func(t *testing.T) {
 		opt := newopt()
 		root := filepath.Join(root, "valid_exit")

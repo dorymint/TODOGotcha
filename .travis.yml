@@ -1,10 +1,10 @@
 language: go
 go:
-  - 1.8.3
-  - 1.9.2
+  - 1.9.4
+  - 1.10
 sudo: false
 before_install:
   - go get github.com/kamisari/go-todogotcha/gotcha
 script:
   - go test -v -race -cover ./gotcha
-  - gotcha -root ./gotcha/main.go -verbose
+  - gotcha -root ./gotcha/main.go

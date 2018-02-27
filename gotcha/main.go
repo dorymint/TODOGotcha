@@ -1,20 +1,21 @@
 package main
 
+// TODO: to simpl
+
 import (
 	"bytes"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-// TODO: implementation to read configuraton files, is name .gotcha?
-
 // version and cmd name
 const (
-	Version = "0.0.1rc4"
+	Version = "0.1.0dev"
 	Name    = "gotcha"
 )
 
@@ -29,7 +30,6 @@ type option struct {
 	version bool
 	root    string
 	word    string
-	verbose bool
 	abort   bool
 	out     string
 	force   bool
@@ -51,6 +51,8 @@ type option struct {
 	nworker uint
 	sync    bool
 	cache   bool
+
+	dropErrors bool
 }
 
 var opt = &option{}
@@ -96,12 +98,13 @@ func init() {
 	flag.UintVar(&opt.add, "add", 0, "specify number of lines of after find the word")
 
 	flag.IntVar(&opt.maxRune, "max", 256, "specify characters limit")
-	flag.BoolVar(&opt.verbose, "verbose", false, "output of log messages")
 	flag.BoolVar(&opt.abort, "abort", false, "if exists errors then abort process")
 
 	flag.UintVar(&opt.nworker, "nworker", 0, "specify limitation of gather worker")
 	flag.BoolVar(&opt.sync, "sync", false, "for debug: run on sync")
 	flag.BoolVar(&opt.cache, "cache", false, "use data cache")
+
+	flag.BoolVar(&opt.dropErrors, "drop-errors", false, "drop errors")
 }
 
 func run(w, errw io.Writer, opt *option) (exitCode int) {
@@ -139,16 +142,19 @@ func run(w, errw io.Writer, opt *option) (exitCode int) {
 
 	// use buffer
 	if opt.cache {
-		orgiw := w
+		origw := w
+		origerrw := errw
 		buf := bytes.NewBufferString("")
+		errbuf := bytes.NewBufferString("")
 		w = buf
+		errw = errbuf
 		defer func() {
-			//_, err := fmt.Fprintln(orgiw, w)
-			_, err := io.Copy(orgiw, buf)
+			_, err := io.Copy(origw, buf)
 			if err != nil {
 				fmt.Fprintln(errw, err)
 				exitCode = ErrRun
 			}
+			io.Copy(origerrw, errbuf)
 		}()
 	}
 
@@ -170,7 +176,9 @@ func run(w, errw io.Writer, opt *option) (exitCode int) {
 	g.IgnoreTypesMap = makeBoolMap(opt.ignoreTypes)
 	g.MaxRune = opt.maxRune
 	g.Add = opt.add
-	if opt.verbose {
+	if opt.dropErrors {
+		g.Log.SetOutput(ioutil.Discard)
+	} else {
 		g.Log.SetOutput(errw)
 	}
 

@@ -83,7 +83,7 @@ func TestRun(t *testing.T) {
 		buf.Reset()
 		errbuf.Reset()
 		tmp := exp
-		exp = exp + "files 1" + "\n" + "lines 1" + "\n"
+		exp = exp + "files 1" + "\n" + "lines 1" + "\n" + "errors 0" + "\n"
 		testf()
 		exp = tmp
 		opt.total = false
@@ -172,23 +172,6 @@ func TestRun(t *testing.T) {
 		}
 	})
 
-	t.Run("verbose", func(t *testing.T) {
-		root := filepath.Join(root, "verbose")
-		if err := os.Mkdir(root, 0777); err != nil {
-			t.Fatal(err)
-		}
-		path := filepath.Join(root, "toolong.txt")
-		if err := ioutil.WriteFile(path, []byte(TooLongLine), 0666); err != nil {
-			t.Fatal(err)
-		}
-		opt := newopt()
-		opt.verbose = true
-		buf, errbuf := newbufs()
-		if exit := run(buf, errbuf, opt); exit == ValidExit {
-			t.Fatal("expected error but valid exit")
-		}
-	})
-
 	t.Run("specify file", func(t *testing.T) {
 		root := filepath.Join(root, "specify_file")
 		if err := os.Mkdir(root, 0777); err != nil {
@@ -206,7 +189,7 @@ func TestRun(t *testing.T) {
 			t.Errorf("exit=%d errbuf=%s opt=%#v", exit, errbuf, opt)
 		}
 		if exp != buf.String() {
-			t.Errorf("exp=%s out=%s opt=%s", exp, buf, opt)
+			t.Errorf("exp=%#v out=%#v opt=%#v", exp, buf, opt)
 		}
 	})
 }

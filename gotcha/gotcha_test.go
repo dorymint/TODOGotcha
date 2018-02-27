@@ -44,6 +44,7 @@ func Test_gather(t *testing.T) {
 
 	t.Run("none error", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		tests := []Tests{
 			{
 				in: "TODO: hi",
@@ -67,6 +68,7 @@ func Test_gather(t *testing.T) {
 
 	t.Run("use trim", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		g.Trim = true
 		tests := []Tests{
 			{
@@ -91,6 +93,7 @@ func Test_gather(t *testing.T) {
 
 	t.Run("use add", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		g.Add = 1
 		tests := []Tests{
 			{
@@ -118,6 +121,7 @@ func Test_gather(t *testing.T) {
 	t.Run("err file not exists", func(t *testing.T) {
 		notexists := path + "notexits"
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		res := g.gather(notexists)
 		if os.IsNotExist(res.err) {
 			return
@@ -127,6 +131,7 @@ func Test_gather(t *testing.T) {
 
 	t.Run("err have too long line", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		tests := []Tests{
 			{
 				in: TooLongLine,
@@ -295,6 +300,7 @@ func Test_isTarget(t *testing.T) {
 	}
 	t.Run("use ignore base", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		g.IgnoreBasesMap["ignore"] = true
 		tests := []Tests{
 			{
@@ -311,6 +317,7 @@ func Test_isTarget(t *testing.T) {
 
 	t.Run("ignore type", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		tests := []Tests{
 			{
 				path:   "ignore.bz",
@@ -352,8 +359,8 @@ func TestAsyncWorkGo(t *testing.T) {
 		buf := bytes.NewBufferString("")
 		errbuf := bytes.NewBufferString("")
 		g := NewGotcha()
-		g.W = buf
 		g.Log.SetOutput(errbuf)
+		g.W = buf
 
 		exitCode := g.WorkGo(root, 0)
 		if exitCode != ValidExit {
@@ -412,6 +419,7 @@ func TestSyncWorkGo(t *testing.T) {
 
 	t.Run("gotcha", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		buf := bytes.NewBufferString("")
 		g.W = buf
 		if err := g.SyncWorkGo(root); err != nil {
@@ -425,6 +433,7 @@ func TestSyncWorkGo(t *testing.T) {
 
 	t.Run("ignore dir", func(t *testing.T) {
 		g := NewGotcha()
+		g.Log.SetOutput(ioutil.Discard)
 		buf := bytes.NewBufferString("")
 		g.W = buf
 		g.IgnoreDirsMap[filepath.Base(dir)] = true
@@ -441,8 +450,8 @@ func TestSyncWorkGo(t *testing.T) {
 	t.Run("valid err", func(t *testing.T) {
 		g := NewGotcha()
 		errbuf := bytes.NewBufferString("")
-		g.W = ioutil.Discard
 		g.Log.SetOutput(errbuf)
+		g.W = ioutil.Discard
 
 		tooLongFile := filepath.Join(root, "too_long")
 		ioutil.WriteFile(tooLongFile, []byte(TooLongLine), 0666)

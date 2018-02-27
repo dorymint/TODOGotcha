@@ -1,5 +1,7 @@
 package main
 
+// TODO: to simpl
+
 import (
 	"bufio"
 	"errors"
@@ -32,8 +34,9 @@ type Gotcha struct {
 	Trim    bool
 	Abort   bool
 
-	nfiles uint
-	nlines uint
+	nfiles  uint
+	nlines  uint
+	nerrors uint
 }
 
 // NewGotcha allocation for Gotcha
@@ -47,7 +50,7 @@ func NewGotcha() *Gotcha {
 	}
 	return &Gotcha{
 		W:   os.Stdout,
-		Log: log.New(ioutil.Discard, "["+Name+"]:", log.Lshortfile),
+		Log: log.New(os.Stderr, "["+Name+"]:", log.Lshortfile),
 
 		Word:           "TODO: ",
 		TypesMap:       make(map[string]bool),
@@ -60,14 +63,15 @@ func NewGotcha() *Gotcha {
 		Trim:    false,
 		Abort:   false,
 
-		nfiles: 0,
-		nlines: 0,
+		nfiles:  0,
+		nlines:  0,
+		nerrors: 0,
 	}
 }
 
 // PrintTotal prnt nfiles and ncontents
 func (g *Gotcha) PrintTotal() (int, error) {
-	return fmt.Fprintf(g.W, "files %d\nlines %d\n", g.nfiles, g.nlines)
+	return fmt.Fprintf(g.W, "files %d\nlines %d\nerrors %d\n", g.nfiles, g.nlines, g.nerrors)
 }
 
 func (g *Gotcha) isTarget(path string) bool {
@@ -93,7 +97,7 @@ type gatherRes struct {
 
 func (gr *gatherRes) Error() string {
 	if gr.err == ErrHaveTooLongLine {
-		return gr.err.Error() + ":" + gr.path
+		return gr.err.Error() + ": [" + gr.path + "]"
 	}
 	return gr.err.Error()
 }
@@ -232,12 +236,14 @@ func (g *Gotcha) WorkGo(root string, nworker uint) (exitCode int) {
 			case err := <-errch:
 				// TODO: error handling
 				if err != nil {
+					// TODO: is it safe?
+					g.nerrors++
 					exitCode = 1 // TODO: consider exitCode
 					switch {
 					case g.Abort:
 						g.Log.Fatal(err) // TODO: consider
 					case IsTooLong(err), os.IsPermission(err), os.IsNotExist(err):
-						g.Log.Println(err)
+						g.Log.Printf("%v\n\n", err)
 						continue
 					default:
 						g.Log.Fatalln("unknown error:", err)
@@ -308,6 +314,8 @@ func (g *Gotcha) WorkGo(root string, nworker uint) (exitCode int) {
 						wg.Add(1)
 						gatherQueue <- path
 						continue
+					default:
+						g.Log.Printf("ignored: [%v]\n\n", path)
 					}
 				}
 				wg.Done()
@@ -326,30 +334,34 @@ func (g *Gotcha) WorkGo(root string, nworker uint) (exitCode int) {
 // SyncWorkGo run on sync
 func (g *Gotcha) SyncWorkGo(root string) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+		switch {
+		case err != nil:
 			return err
-		}
-		if info.IsDir() && g.IgnoreDirsMap[info.Name()] {
+		case info.IsDir() && g.IgnoreDirsMap[info.Name()]:
+			g.Log.Printf("ignored: [%v]\n\n", path)
 			return filepath.SkipDir
-		}
-		if info.Mode().IsRegular() && g.isTarget(info.Name()) {
+		case info.Mode().IsRegular() && g.isTarget(info.Name()):
 			gr := g.gather(path)
 			err := gr.Fwrite(g.W)
 			if err != nil {
+				g.nerrors++
 				switch {
 				case g.Abort:
-					g.Log.Fatal(err) // TODO: consider not use panic
+					g.Log.Fatal(err) // TODO: consider not use fatal
 				case os.IsPermission(err), os.IsNotExist(err), IsTooLong(err):
-					g.Log.Print(err)
+					g.Log.Printf("%v\n\n", err)
 				default:
-					g.Log.Fatal(err) // TODO: consider not use panic
+					g.Log.Fatal(err) // TODO: consider not use fatal
 				}
+				// TODO: consider
 				return nil
 			}
 			if len(gr.contents) != 0 {
 				g.nfiles++
 				g.nlines += uint(len(gr.contents))
 			}
+		default:
+			g.Log.Printf("ignored: [%v]\n\n", path)
 		}
 		return nil
 	})

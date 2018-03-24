@@ -52,7 +52,7 @@ type option struct {
 	sync    bool
 	cache   bool
 
-	dropErrors bool
+	verbose bool
 }
 
 var opt = &option{}
@@ -104,7 +104,7 @@ func init() {
 	flag.BoolVar(&opt.sync, "sync", false, "for debug: run on sync")
 	flag.BoolVar(&opt.cache, "cache", false, "use data cache")
 
-	flag.BoolVar(&opt.dropErrors, "drop-errors", false, "drop errors")
+	flag.BoolVar(&opt.verbose, "verbose", false, "verbose output")
 }
 
 func run(w, errw io.Writer, opt *option) (exitCode int) {
@@ -176,10 +176,10 @@ func run(w, errw io.Writer, opt *option) (exitCode int) {
 	g.IgnoreTypesMap = makeBoolMap(opt.ignoreTypes)
 	g.MaxRune = opt.maxRune
 	g.Add = opt.add
-	if opt.dropErrors {
-		g.Log.SetOutput(ioutil.Discard)
-	} else {
+	if opt.verbose {
 		g.Log.SetOutput(errw)
+	} else {
+		g.Log.SetOutput(ioutil.Discard)
 	}
 
 	/// TODO: case opt.root == ToFilePath:

@@ -7,7 +7,7 @@ go:
   - master
 sudo: false
 before_install:
-  - go get -u github.com/kamisari/go-todogotcha/gotcha
+  - go get -u github.com/yaeshimo/go-todogotcha/gotcha
 before_script:
   - cd gotcha
 script:

@@ -6,7 +6,7 @@ cli tool for gathering of "TODO: " from files
 ## Installation:
 ----------------
 ```
-go get github.com/kamisari/go-todogotcha/gotcha
+go get github.com/yaeshimo/go-todogotcha/gotcha
 ```
 
 ## Example:

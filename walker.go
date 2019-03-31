@@ -1,6 +1,6 @@
 package main
 
-// TODO: to simpl
+// TODO: fix
 
 import (
 	"bufio"

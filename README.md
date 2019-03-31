@@ -1,23 +1,20 @@
-# gotcha
---------
-cli tool for gathering of "TODO: " from files
+# rgr
 
+For learn.
 
-## Installation:
-----------------
+rgr is cli tool for find target words in many files.
+
+## Usage
+
+```sh
 ```
-go get github.com/yaeshimo/go-todogotcha/gotcha
+
+## Installation
+
+```sh
+go get github.com/yaeshimo/rgr
 ```
 
-## Example:
------------
-- `gotcha` recursive check from current directory
-- `gotcha /path/dir` or `gotcha -root /path/dir` specify root
-- `gotcha -word "func "` specify target word, default is "TODO: "
-- `gotcha -out /path/log` specify output
+## Licence
 
-- `gotcha -help` print help
-
-## Licence:
------------
 MIT

@@ -1,7 +1,5 @@
 package main
 
-// TODO: fix
-
 import (
 	"bufio"
 	"errors"
@@ -11,358 +9,408 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
-	"strings"
 	"sync"
+	"unicode/utf8"
 )
 
-// Gotcha for search recursive
-type Gotcha struct {
-	W   io.Writer
-	Log *log.Logger
+var ErrInvalidText = errors.New("unavailable encoding")
+var ErrInternal = errors.New("internal error")
 
-	// options
-	Word           string
-	TypesMap       map[string]bool
-	IgnoreDirsMap  map[string]bool
-	IgnoreBasesMap map[string]bool
-	IgnoreTypesMap map[string]bool
-
-	// TODO: consider
-	MaxRune int
-	Add     uint
-	Trim    bool
-	Abort   bool
-
-	nfiles  uint
-	nlines  uint
-	nerrors uint
+type Line struct {
+	Num uint
+	Str string
 }
 
-// NewGotcha allocation for Gotcha
-func NewGotcha() *Gotcha {
-	makeBoolMap := func(list []string) map[string]bool {
-		m := make(map[string]bool)
-		for _, s := range list {
-			m[s] = true
-		}
-		return m
+// cap(q) is required always greater than 1
+type LineQueue struct{ q chan *Line }
+
+func NewLineQueue(capacity uint) (*LineQueue, error) {
+	if capacity == 0 {
+		return nil, errors.New("capacity is 0")
 	}
-	return &Gotcha{
-		W:   os.Stdout,
-		Log: log.New(os.Stderr, "["+Name+"]:", log.Lshortfile),
-
-		Word:           "TODO: ",
-		TypesMap:       make(map[string]bool),
-		IgnoreDirsMap:  makeBoolMap(IgnoreDirs),
-		IgnoreBasesMap: makeBoolMap(IgnoreBases),
-		IgnoreTypesMap: makeBoolMap(IgnoreTypes),
-
-		MaxRune: 256,
-		Add:     0,
-		Trim:    false,
-		Abort:   false,
-
-		nfiles:  0,
-		nlines:  0,
-		nerrors: 0,
-	}
+	return &LineQueue{make(chan *Line, capacity)}, nil
 }
 
-// PrintTotal prnt nfiles and ncontents
-func (g *Gotcha) PrintTotal() (int, error) {
-	return fmt.Fprintf(g.W, "files %d\nlines %d\nerrors %d\n", g.nfiles, g.nlines, g.nerrors)
-}
+func (lq *LineQueue) Len() int { return len(lq.q) }
+func (lq *LineQueue) Cap() int { return cap(lq.q) }
 
-func (g *Gotcha) isTarget(path string) bool {
-	if g.IgnoreBasesMap[path] {
-		return false
-	}
-	ext := filepath.Ext(path)
-	if g.IgnoreTypesMap[ext] {
-		return false
-	}
-	if len(g.TypesMap) == 0 {
-		return true
-	}
-	return g.TypesMap[ext]
-}
-
-// TODO: consider name
-type gatherRes struct {
-	path     string
-	contents []string
-	err      error
-}
-
-func (gr *gatherRes) Error() string {
-	if gr.err == ErrHaveTooLongLine {
-		return gr.err.Error() + ": [" + gr.path + "]"
-	}
-	return gr.err.Error()
-}
-
-// ErrHaveTooLongLine read limit of over
-var ErrHaveTooLongLine = errors.New("have too long line")
-
-// IsTooLong check ErrHaveTooLongLine
-func IsTooLong(err error) bool {
-	switch e := err.(type) {
-	case *gatherRes:
-		return e.err == ErrHaveTooLongLine
+func (lq *LineQueue) Push(l *Line) {
+	select {
+	case lq.q <- l:
 	default:
-		return e == ErrHaveTooLongLine
+		<-lq.q
+		lq.q <- l
 	}
 }
 
-func (gr *gatherRes) Err() error {
-	if gr.err != nil {
-		switch {
-		case gr.err == ErrHaveTooLongLine:
-			return gr
-		default:
-			return gr.err
+func (lq *LineQueue) PopAll() []*Line {
+	lines := make([]*Line, 0, cap(lq.q))
+	for len(lq.q) != 0 {
+		lines = append(lines, <-lq.q)
+	}
+	return lines
+}
+
+// change to struct{ raw []*Line, index int, pos int }?
+type Context struct {
+	line   *Line
+	before []*Line
+	after  []*Line
+}
+
+func FprintContexts(writer io.Writer, prefix string, cs []*Context) error {
+	if cs == nil {
+		return nil
+	}
+	var err error
+	f := func(ls []*Line) {
+		for _, l := range ls {
+			_, err = fmt.Fprintf(writer, "%s%d-%s\n", prefix, l.Num, l.Str)
+		}
+	}
+	for _, c := range cs {
+		f(c.before)
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(writer, "%s%d:%s\n", prefix, c.line.Num, c.line.Str)
+		if err != nil {
+			return err
+		}
+		f(c.after)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (gr *gatherRes) Fwrite(w io.Writer) error {
-	if err := gr.Err(); err != nil {
-		return err
-	}
-	if len(gr.contents) == 0 {
-		return nil
-	}
-	_, err := fmt.Fprintf(w, "%s\n%s\n\n", gr.path, strings.Join(gr.contents, "\n"))
-	return err
+type File struct {
+	path string
+	cs   []*Context
 }
 
-func (g *Gotcha) gather(path string) *gatherRes {
-	gr := &gatherRes{path: path}
-	var f *os.File
-	f, gr.err = os.Open(path)
-	if gr.err != nil {
-		return gr
+func FprintFile(writer io.Writer, f *File) error {
+	var err error
+	if len(f.cs) == 0 {
+		return nil
+	}
+	_, err = fmt.Fprintln(writer, f.path)
+	if err != nil {
+		return err
+	}
+	err = FprintContexts(writer, "", f.cs)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(writer)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func FprintFileVerbose(writer io.Writer, f *File) error {
+	var err error
+	if len(f.cs) == 0 {
+		return nil
+	}
+	err = FprintContexts(writer, f.path, f.cs)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(writer)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type Walker struct {
+	fileQueue chan string
+	dirQueue  chan []string
+
+	regexp *regexp.Regexp
+	files  map[string]*File
+
+	log, errlog   *log.Logger
+	nworker       int
+	mu            sync.Mutex
+	wg            sync.WaitGroup
+	once          sync.Once
+	internalError bool
+}
+
+func NewWalker() *Walker {
+	nworker := runtime.NumCPU() / 2
+	if nworker < 2 {
+		nworker = 2
+	}
+	return &Walker{
+		fileQueue: make(chan string, 256),
+		dirQueue:  make(chan []string, 128),
+		nworker:   nworker,
+		files:     make(map[string]*File),
+		log:       log.New(ioutil.Discard, Name+":", 0),
+		errlog:    log.New(ioutil.Discard, Name+":[Err]:", 0),
+	}
+}
+
+func (w *Walker) SetLog(writer io.Writer)    { w.log.SetOutput(writer) }
+func (w *Walker) SetErrLog(writer io.Writer) { w.errlog.SetOutput(writer) }
+
+func (w *Walker) setInternalError() {
+	w.once.Do(func() { w.internalError = true })
+}
+
+// may change verbose
+func (w *Walker) run(writer io.Writer, verbose bool, pat string, lines uint, paths ...string) error {
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		return err
+	}
+	w.regexp = re
+
+	go w.dirWalker()
+	var doResult func(*File)
+	if writer == nil {
+		doResult = func(f *File) {
+			w.mu.Lock()
+			w.files[f.path] = f
+			w.mu.Unlock()
+		}
+	} else {
+		var printFunc func(io.Writer, *File) error
+		if verbose {
+			printFunc = FprintFileVerbose
+		} else {
+			printFunc = FprintFile
+		}
+		var rwm sync.RWMutex
+		doResult = func(f *File) {
+			rwm.Lock()
+			err := printFunc(writer, f)
+			rwm.Unlock()
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+	for i := 0; i != w.nworker; i++ {
+		go w.fileWalker(lines, doResult)
+	}
+
+	// paths to abs?
+	// treat symlinks?
+	// limitation of depth?
+	var dirs []string
+	for _, path := range paths {
+		fi, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		switch {
+		case fi.Mode().IsRegular():
+			w.wg.Add(1)
+			w.fileQueue <- path
+		case fi.IsDir():
+			dirs = append(dirs, path)
+		}
+	}
+	w.wg.Add(1)
+	w.dirQueue <- dirs
+	w.wg.Wait()
+
+	if w.internalError {
+		return ErrInternal
+	}
+	return nil
+}
+
+func (w *Walker) Run(pat string, lines uint, paths ...string) error {
+	return w.run(nil, false, pat, lines, paths...)
+}
+
+func (w *Walker) RunSyncWrite(writer io.Writer, verbose bool, pat string, lines uint, paths ...string) error {
+	return w.run(writer, verbose, pat, lines, paths...)
+}
+
+// for goroutine
+// send tasks to {file,dir}Queue
+func (w *Walker) dirWalker() {
+	var nextDirs []string
+	for ; true; w.wg.Done() {
+		dirs := <-w.dirQueue
+		for _, dir := range dirs {
+			fis, err := ioutil.ReadDir(dir)
+			if err != nil {
+				w.setInternalError()
+				w.errlog.Printf("%q:%v", dir, err)
+				if os.IsNotExist(err) || os.IsPermission(err) {
+					continue
+				}
+				// unexpected error
+				panic(err)
+			}
+			for _, fi := range fis {
+				switch {
+				case fi.Mode().IsRegular():
+					w.wg.Add(1)
+					w.fileQueue <- filepath.Join(dir, fi.Name())
+				case fi.IsDir():
+					nextDirs = append(nextDirs, filepath.Join(dir, fi.Name()))
+				}
+			}
+		}
+		if nextDirs != nil {
+			w.wg.Add(1)
+			w.dirQueue <- nextDirs
+			nextDirs = nil
+		}
+	}
+}
+
+// for goroutine
+func (w *Walker) fileWalker(lines uint, doResult func(*File)) {
+	var lq *LineQueue
+	if lines != 0 {
+		// not need error check
+		lq, _ = NewLineQueue(lines)
+	}
+	for ; true; w.wg.Done() {
+		file := <-w.fileQueue
+		w.mu.Lock()
+		if _, ok := w.files[file]; ok {
+			w.mu.Unlock()
+			continue
+		}
+		w.files[file] = nil
+		w.mu.Unlock()
+		cs, err := w.readFile(file, lq)
+		if err != nil {
+			w.setInternalError()
+			w.errlog.Printf("%q:%v", file, err)
+			if os.IsNotExist(err) || os.IsPermission(err) {
+				continue
+			}
+			if err == bufio.ErrTooLong {
+				continue
+			}
+			if err == ErrInvalidText {
+				continue
+			}
+			// unexpected error
+			panic(err)
+		}
+		w.log.Println(file)
+		if len(cs) != 0 {
+			doResult(&File{
+				path: file,
+				cs:   cs,
+			})
+		}
+	}
+}
+
+func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
 	}
 	defer f.Close()
 
-	var (
-		sc            = bufio.NewScanner(f)
-		index         = -1
-		lineCount     = uint(1) // TODO: consider to zero
-		addCount      = uint(0)
-		push          func()
-		pushNextLines func()
-	)
+	var cs []*Context
+	var c = new(Context)
+	var txt string
+	var i uint
+	var matched bool
 
-	if g.Trim {
-		push = func() {
-			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()[index+len(g.Word):]))
-			addCount = 1
-		}
-	} else {
-		push = func() {
-			gr.contents = append(gr.contents, fmt.Sprintf("L%v:%s", lineCount, sc.Text()))
-			addCount = 1
-		}
-	}
-
-	if g.Add != 0 {
-		pushNextLines = func() {
-			if addCount != 0 && addCount <= g.Add {
-				gr.contents = append(gr.contents, fmt.Sprintf(" %v:%s", lineCount, sc.Text()))
-				addCount++
-			} else {
-				addCount = 0
+	var csAdd func()
+	if lq == nil {
+		csAdd = func() {
+			if matched {
+				cs = append(cs, &Context{
+					line:   &Line{i, txt},
+					before: []*Line{},
+					after:  []*Line{},
+				})
 			}
 		}
 	} else {
-		// discard
-		pushNextLines = func() {}
-	}
-
-	for ; sc.Scan(); lineCount++ {
-		if gr.err = sc.Err(); gr.err != nil {
-			return gr
-		}
-		if g.MaxRune > 0 && len(sc.Text()) > g.MaxRune {
-			gr.err = ErrHaveTooLongLine
-			return gr
-		}
-		if index = strings.Index(sc.Text(), g.Word); index != -1 {
-			push()
-			continue
-		}
-		pushNextLines()
-	}
-	return gr
-}
-
-// WorkGo run on async
-func (g *Gotcha) WorkGo(root string, nworker uint) (exitCode int) {
-	// queue -> gatherQueue -> res
-	var (
-		wg          = new(sync.WaitGroup)
-		queue       = make(chan string, 512)
-		gatherQueue = make(chan string, 512)
-		res         = make(chan *gatherRes, 512)
-		errch       = make(chan error, 128)
-	)
-
-	// TODO: consider really need? goCounter
-	var (
-		goCounter = uint(0)
-		done      = make(chan struct{})
-	)
-	defer func() {
-		for ; goCounter != 0; goCounter-- {
-			done <- struct{}{}
-		}
-	}()
-
-	// TODO: consider
-	if nworker == 0 {
-		nworker = uint(runtime.NumCPU() / 2)
-	}
-
-	// error handler
-	// TODO: consider error handling
-	//     : this is maybe discard some errors
-	goCounter++
-	go func() {
-		for {
-			select {
-			case err := <-errch:
-				// TODO: error handling
-				if err != nil {
-					// TODO: is it safe?
-					g.nerrors++
-					exitCode = 1 // TODO: consider exitCode
-					switch {
-					case g.Abort:
-						g.Log.Fatal(err) // TODO: consider
-					case IsTooLong(err), os.IsPermission(err), os.IsNotExist(err):
-						g.Log.Printf("%v\n\n", err)
-						continue
-					default:
-						g.Log.Fatalln("unknown error:", err)
-						//panic(err) // TODO: consider
+		csAdd = func() {
+			if c.line != nil {
+				if matched {
+					c.after = lq.PopAll()
+					cs = append(cs, c)
+					c = &Context{
+						before: []*Line{},
+						line:   &Line{i, txt},
+						after:  []*Line{},
 					}
-				}
-			case <-done:
-				return
-			}
-		}
-	}()
-
-	// woker
-	for i := uint(0); i != nworker; i++ {
-		goCounter++
-		go func() {
-			for {
-				select {
-				case path := <-gatherQueue:
-					res <- g.gather(path)
-				case <-done:
 					return
 				}
+				if lq.Len() == lq.Cap() {
+					c.after = lq.PopAll()
+					cs = append(cs, c)
+					c = new(Context)
+				}
+			} else if matched {
+				c.before = lq.PopAll()
+				c.line = &Line{i, txt}
+				return
 			}
-		}()
+			lq.Push(&Line{i, txt})
+		}
 	}
 
-	// res with write
-	goCounter++
-	go func() {
-		for {
-			select {
-			case gr := <-res:
-				if err := gr.Fwrite(g.W); err != nil {
-					errch <- err
-				} else if len(gr.contents) != 0 {
-					g.nfiles++
-					g.nlines += uint(len(gr.contents))
-				}
-				wg.Done()
-			case <-done:
-				return
-			}
+	sc := bufio.NewScanner(f)
+	for i = uint(1); sc.Scan(); i++ {
+		if i == 0 {
+			return nil, errors.New("too many lines")
 		}
-	}()
-
-	// walker
-	goCounter++
-	go func() {
-		for {
-			select {
-			case dir := <-queue:
-				infos, err := ioutil.ReadDir(dir)
-				if err != nil {
-					errch <- err
-					wg.Done()
-					continue
-				}
-				for _, info := range infos {
-					path := filepath.Join(dir, info.Name())
-					switch {
-					case info.IsDir() && !g.IgnoreDirsMap[info.Name()]:
-						// TODO: consider another way
-						wg.Add(1)
-						go func(path string) { queue <- path }(path)
-						continue
-					case info.Mode().IsRegular() && g.isTarget(info.Name()):
-						wg.Add(1)
-						gatherQueue <- path
-						continue
-					default:
-						g.Log.Printf("ignored: [%v]\n\n", path)
-					}
-				}
-				wg.Done()
-			case <-done:
-				return
-			}
+		txt = sc.Text()
+		if !utf8.ValidString(txt) {
+			return nil, ErrInvalidText
 		}
-	}()
+		matched = w.regexp.MatchString(txt)
+		csAdd()
+	}
+	if err = sc.Err(); err != nil {
+		return nil, err
+	}
 
-	wg.Add(1)
-	queue <- root
-	wg.Wait()
-	return exitCode
+	// append last one for w.lines != 0
+	if c.line != nil {
+		c.after = lq.PopAll()
+		cs = append(cs, c)
+	}
+	return cs, nil
 }
 
-// SyncWorkGo run on sync
-func (g *Gotcha) SyncWorkGo(root string) error {
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		switch {
-		case err != nil:
-			return err
-		case info.IsDir() && g.IgnoreDirsMap[info.Name()]:
-			g.Log.Printf("ignored: [%v]\n\n", path)
-			return filepath.SkipDir
-		case info.Mode().IsRegular() && g.isTarget(info.Name()):
-			gr := g.gather(path)
-			err := gr.Fwrite(g.W)
-			if err != nil {
-				g.nerrors++
-				switch {
-				case g.Abort:
-					g.Log.Fatal(err) // TODO: consider not use fatal
-				case os.IsPermission(err), os.IsNotExist(err), IsTooLong(err):
-					g.Log.Printf("%v\n\n", err)
-				default:
-					g.Log.Fatal(err) // TODO: consider not use fatal
-				}
-				// TODO: consider
-				return nil
-			}
-			if len(gr.contents) != 0 {
-				g.nfiles++
-				g.nlines += uint(len(gr.contents))
-			}
-		default:
-			g.Log.Printf("ignored: [%v]\n\n", path)
+func (w *Walker) fprintFiles(writer io.Writer, verbose bool) error {
+	var err error
+	printFunc := FprintFile
+	if verbose {
+		printFunc = FprintFileVerbose
+	}
+	for _, f := range w.files {
+		if f == nil {
+			continue
 		}
-		return nil
-	})
+		err = printFunc(writer, f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *Walker) FprintFiles(writer io.Writer) error {
+	return w.fprintFiles(writer, false)
+}
+
+func (w *Walker) FprintFilesVerbose(writer io.Writer) error {
+	return w.fprintFiles(writer, true)
 }

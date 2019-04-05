@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	Version = "0.3.0"
+	Version = "0.4.0"
 	Name    = "rgr"
 )
 
@@ -70,7 +70,7 @@ var opt struct {
 	before uint
 	after  uint
 
-	sync    bool // sync write
+	sync    bool
 	verbose bool
 }
 
@@ -81,7 +81,7 @@ func init() {
 	flag.UintVar(&opt.context, "context", 0, "Append context")
 	flag.UintVar(&opt.context, "c", 0, "Alias of -context")
 
-	flag.BoolVar(&opt.sync, "sync", false, "Sync output")
+	flag.BoolVar(&opt.sync, "sync", false, "Enable sync output")
 	flag.BoolVar(&opt.verbose, "verbose", false, "Verbose output")
 	flag.Usage = printUsage
 	flag.Parse()
@@ -101,7 +101,7 @@ func run() error {
 		flag.Usage()
 		return errors.New("arguments not enough")
 	}
-
+	pat := flag.Arg(0)
 	paths := flag.Args()[1:]
 	if len(paths) == 0 {
 		pwd, err := os.Getwd()
@@ -113,25 +113,31 @@ func run() error {
 
 	walker := NewWalker()
 	if opt.verbose {
-		walker.SetLog(os.Stderr)
-		walker.SetErrLog(os.Stderr)
+		walker.SetLogOutput(os.Stderr)
+	}
+	fch, wait, err := walker.Start(pat, opt.context, paths...)
+	if err != nil {
+		return err
 	}
 
 	if opt.sync {
-		// TODO: change output style with opt
-		return walker.RunSyncWrite(os.Stdout, false, flag.Arg(0), opt.context, paths...)
+		for f := range fch {
+			err := f.Fprint(os.Stdout)
+			if err != nil {
+				return err
+			}
+		}
+		return wait()
 	} else {
-		// TODO: change output style with opt
-		fprintFunc := walker.FprintFiles
-
-		err := walker.Run(flag.Arg(0), opt.context, paths...)
-		if err == ErrInternal {
-			fprintFunc(os.Stdout)
-			return err
-		} else if err != nil {
+		var fs []*File
+		for f := range fch {
+			fs = append(fs, f)
+		}
+		err := FprintFiles(os.Stdout, fs...)
+		if err != nil {
 			return err
 		}
-		return fprintFunc(os.Stdout)
+		return wait()
 	}
 }
 

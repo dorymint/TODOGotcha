@@ -14,12 +14,18 @@ import (
 func TestWalk(t *testing.T) {
 	dir := filepath.Join("testdata", "walker")
 	w := NewWalker()
-	err := w.Run("word", 0, dir)
+	resutQueue, _, err := w.Start("word", 0, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	var out []*File
+	for f := range resutQueue {
+		out = append(out, f)
+	}
+
 	buf := bytes.NewBufferString("")
-	err = w.FprintFiles(buf)
+	err = FprintFiles(buf, out...)
 	if err != nil {
 		t.Fatal(err)
 	}

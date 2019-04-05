@@ -96,7 +96,7 @@ type File struct {
 	cs   []*Context
 }
 
-func FprintFile(writer io.Writer, f *File) error {
+func (f *File) Fprint(writer io.Writer) error {
 	var err error
 	if len(f.cs) == 0 {
 		return nil
@@ -116,7 +116,7 @@ func FprintFile(writer io.Writer, f *File) error {
 	return nil
 }
 
-func FprintFileVerbose(writer io.Writer, f *File) error {
+func (f *File) FprintVerbose(writer io.Writer) error {
 	var err error
 	if len(f.cs) == 0 {
 		return nil
@@ -128,6 +128,28 @@ func FprintFileVerbose(writer io.Writer, f *File) error {
 	_, err = fmt.Fprintln(writer)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func FprintFiles(writer io.Writer, fs ...*File) error {
+	var err error
+	for i := range fs {
+		err = fs[i].Fprint(writer)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func FprintFilesVerbose(writer io.Writer, fs ...*File) error {
+	var err error
+	for i := range fs {
+		err = fs[i].FprintVerbose(writer)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -381,36 +403,10 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 		return nil, err
 	}
 
-	// append last one for w.lines != 0
+	// append last one for nlines != 0
 	if c.line != nil {
 		c.after = lq.PopAll()
 		cs = append(cs, c)
 	}
 	return cs, nil
-}
-
-func (w *Walker) fprintFiles(writer io.Writer, verbose bool) error {
-	var err error
-	printFunc := FprintFile
-	if verbose {
-		printFunc = FprintFileVerbose
-	}
-	for _, f := range w.files {
-		if f == nil {
-			continue
-		}
-		err = printFunc(writer, f)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (w *Walker) FprintFiles(writer io.Writer) error {
-	return w.fprintFiles(writer, false)
-}
-
-func (w *Walker) FprintFilesVerbose(writer io.Writer) error {
-	return w.fprintFiles(writer, true)
 }

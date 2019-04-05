@@ -339,6 +339,7 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 			}
 		}
 	} else {
+		defer lq.PopAll()
 		csAdd = func() {
 			if c.line != nil {
 				if matched {

@@ -28,7 +28,7 @@ func TestWalk(t *testing.T) {
 	}
 
 	buf := bytes.NewBufferString("")
-	if err = FprintFiles(buf, out...); err != nil {
+	if err := FprintFiles(buf, out...); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("out:\n%v", buf)
@@ -135,7 +135,7 @@ func TestWalkReadFile(t *testing.T) {
 				if i == 0 {
 					prefix = "exp"
 				} else {
-					prefix = "oot"
+					prefix = "out"
 				}
 				FprintContexts(buf, "", cs)
 				t.Logf("%s:\n%s", prefix, buf)

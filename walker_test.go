@@ -35,7 +35,7 @@ func TestWalk(t *testing.T) {
 var walerReadFileTests = []struct {
 	in      string
 	pat     string
-	lines   uint
+	nlines  int
 	exp     []*Context
 	wanterr bool
 }{
@@ -126,22 +126,18 @@ func TestWalkReadFile(t *testing.T) {
 	verify := func(casev interface{}, exp []*Context, out []*Context) {
 		t.Helper()
 		if !reflect.DeepEqual(exp, out) {
-			t.Logf("\ncase %+v\nexp.cs:%+v\nout.cs:%+v", casev, exp, out)
+			t.Logf("case %+v\nexp.cs:%+v\nout.cs:%+v", casev, exp, out)
+			buf := bytes.NewBufferString("")
 			for i, cs := range [][]*Context{exp, out} {
 				var prefix string
 				if i == 0 {
-					prefix = "exp.c"
+					prefix = "exp"
 				} else {
-					prefix = "oot.c"
+					prefix = "oot"
 				}
-				for i, c := range cs {
-					t.Logf("%s.cs[%d], before %+v, line %+v, after %+v",
-						prefix,
-						i,
-						c.before,
-						c.line,
-						c.after)
-				}
+				FprintContexts(buf, "", cs)
+				t.Logf("%s:\n%s", prefix, buf)
+				buf.Reset()
 			}
 			t.FailNow()
 		}
@@ -164,11 +160,8 @@ func TestWalkReadFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		w.regexp = re
-		var lq *LineQueue
-		if test.lines != 0 {
-			lq, _ = NewLineQueue(test.lines)
-		}
-		out, err := w.readFile(f.Name(), lq)
+		lq := new(LineQueue)
+		out, err := w.readFile(f.Name(), lq, test.nlines)
 		if test.wanterr {
 			if err != nil {
 				continue

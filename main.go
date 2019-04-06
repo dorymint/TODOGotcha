@@ -64,7 +64,7 @@ var opt struct {
 	// %f:%l:%c:%m
 	style string
 
-	context uint
+	context int
 
 	// TODO
 	before uint
@@ -77,8 +77,8 @@ func init() {
 	flag.BoolVar(&opt.help, "help", false, "Print usage")
 	flag.BoolVar(&opt.version, "version", false, "Print version")
 
-	flag.UintVar(&opt.context, "context", 0, "Append context")
-	flag.UintVar(&opt.context, "c", 0, "Alias of -context")
+	flag.IntVar(&opt.context, "context", 0, "Append context")
+	flag.IntVar(&opt.context, "c", 0, "Alias of -context")
 
 	flag.BoolVar(&opt.verbose, "verbose", false, "Verbose output")
 	flag.Usage = printUsage
@@ -123,7 +123,6 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		return wait()
 	}
 	return wait()
 }

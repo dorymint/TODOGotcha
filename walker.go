@@ -18,11 +18,12 @@ import (
 var ErrInvalidText = errors.New("unavailable encoding")
 
 type InternalError struct {
-	e error
+	path string
+	e    error
 }
 
 func (ei *InternalError) Error() string {
-	return fmt.Sprintf("internal error:%v", ei.e)
+	return fmt.Sprintf("internal error:%v:%s", ei.e, ei.path)
 }
 
 type Line struct {
@@ -187,8 +188,8 @@ func NewWalker() *Walker {
 
 func (w *Walker) SetLogOutput(writer io.Writer) { w.log.SetOutput(writer) }
 
-func (w *Walker) setInternalError(err error) {
-	w.once.Do(func() { w.internalError = &InternalError{e: err} })
+func (w *Walker) setInternalError(err error, path string) {
+	w.once.Do(func() { w.internalError = &InternalError{e: err, path: path} })
 }
 
 func (w *Walker) sendQueue(paths ...string) {
@@ -196,13 +197,13 @@ func (w *Walker) sendQueue(paths ...string) {
 	for i := range paths {
 		abs, err := filepath.Abs(paths[i])
 		if err != nil {
-			w.setInternalError(err)
+			w.setInternalError(err, abs)
 			w.log.Printf("[Err]:%v", err)
 			continue
 		}
 		fi, err := os.Stat(abs)
 		if err != nil {
-			w.setInternalError(err)
+			w.setInternalError(err, abs)
 			w.log.Printf("[Errr]:%v", err)
 			continue
 		}
@@ -252,11 +253,13 @@ func (w *Walker) dirWalker(done <-chan struct{}) {
 	var dirs []string
 	for ; true; w.wg.Done() {
 		select {
+		case <-done:
+			return
 		case dirs = <-w.dirQueue:
 			for i := range dirs {
 				fis, err := ioutil.ReadDir(dirs[i])
 				if err != nil {
-					w.setInternalError(err)
+					w.setInternalError(err, dirs[i])
 					w.log.Printf("[Err]:%s:%v", dirs[i], err)
 					if os.IsNotExist(err) || os.IsPermission(err) {
 						continue
@@ -296,6 +299,8 @@ func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlin
 	var cs []*Context
 	for ; true; w.wg.Done() {
 		select {
+		case <-done:
+			return
 		case file = <-w.fileQueue:
 			w.mu.Lock()
 			if w.checked[file] {
@@ -307,7 +312,7 @@ func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlin
 
 			cs, err = w.readFile(file, lq)
 			if err != nil {
-				w.setInternalError(err)
+				w.setInternalError(err, file)
 				w.log.Printf("[Err]:%s:%v", file, err)
 				if os.IsNotExist(err) || os.IsPermission(err) {
 					continue
@@ -328,8 +333,6 @@ func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlin
 					cs:   cs,
 				}
 			}
-		case <-done:
-			return
 		}
 	}
 }

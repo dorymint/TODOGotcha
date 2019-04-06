@@ -31,31 +31,29 @@ type Line struct {
 	Str string
 }
 
-// cap(q) is required always greater than 1
-type LineQueue struct{ q chan *Line }
-
-func NewLineQueue(capacity uint) (*LineQueue, error) {
-	if capacity == 0 {
-		return nil, errors.New("capacity is 0")
-	}
-	return &LineQueue{make(chan *Line, capacity)}, nil
+type LineQueue struct {
+	ls []*Line
 }
-func (lq *LineQueue) Len() int { return len(lq.q) }
-func (lq *LineQueue) Cap() int { return cap(lq.q) }
-func (lq *LineQueue) Push(l *Line) {
-	select {
-	case lq.q <- l:
-	default:
-		<-lq.q
-		lq.q <- l
-	}
+
+func (lq *LineQueue) Len() int     { return len(lq.ls) }
+func (lq *LineQueue) Push(l *Line) { lq.ls = append(lq.ls, l) }
+func (lq *LineQueue) Pop() *Line {
+	// believe to do not access out of bounds.
+	l := lq.ls[0]
+	lq.ls = lq.ls[1:]
+	return l
 }
 func (lq *LineQueue) PopAll() []*Line {
-	lines := make([]*Line, 0, cap(lq.q))
-	for len(lq.q) != 0 {
-		lines = append(lines, <-lq.q)
+	lines := make([]*Line, 0, len(lq.ls))
+	for lq.Len() != 0 {
+		lines = append(lines, lq.Pop())
 	}
 	return lines
+}
+func (lq *LineQueue) Reset() {
+	if lq.Len() != 0 {
+		lq.ls = lq.ls[:0]
+	}
 }
 
 // change to struct{ index int, pos int, lines []*Line }?
@@ -218,7 +216,7 @@ func (w *Walker) sendQueue(paths ...string) {
 	w.dirQueue <- dirs
 }
 
-func (w *Walker) Start(pat string, nlines uint, paths ...string) (<-chan *File, func() error, error) {
+func (w *Walker) Start(pat string, nlines int, paths ...string) (<-chan *File, func() error, error) {
 	var re *regexp.Regexp
 	re, err := regexp.Compile(pat)
 	if err != nil {
@@ -276,24 +274,18 @@ func (w *Walker) dirWalker(done <-chan struct{}) {
 					}
 				}
 			}
-			if nextDirs != nil {
+			if len(nextDirs) != 0 {
 				w.wg.Add(1)
 				w.dirQueue <- nextDirs
-				nextDirs = nil
+				nextDirs = nextDirs[:0]
 			}
-		case <-done:
-			return
 		}
 	}
 }
 
 // for goroutine
-func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlines uint) {
-	var lq *LineQueue
-	if nlines != 0 {
-		// not need error check
-		lq, _ = NewLineQueue(nlines)
-	}
+func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlines int) {
+	lq := new(LineQueue)
 	var file string
 	var err error
 	var cs []*Context
@@ -310,7 +302,7 @@ func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlin
 			w.checked[file] = true
 			w.mu.Unlock()
 
-			cs, err = w.readFile(file, lq)
+			cs, err = w.readFile(file, lq, nlines)
 			if err != nil {
 				w.setInternalError(err, file)
 				w.log.Printf("[Err]:%s:%v", file, err)
@@ -338,7 +330,7 @@ func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlin
 }
 
 // TODO? readFile(f *File, file string) error
-func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
+func (w *Walker) readFile(file string, lq *LineQueue, nlines int) ([]*Context, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return nil, err
@@ -352,7 +344,7 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 	var matched bool
 
 	var csAdd func()
-	if lq == nil {
+	if nlines < 1 {
 		csAdd = func() {
 			if matched {
 				cs = append(cs, &Context{
@@ -363,7 +355,7 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 			}
 		}
 	} else {
-		defer lq.PopAll()
+		defer lq.Reset()
 		csAdd = func() {
 			if c.line != nil {
 				if matched {
@@ -376,7 +368,7 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 					}
 					return
 				}
-				if lq.Len() == lq.Cap() {
+				if lq.Len() == nlines {
 					c.after = lq.PopAll()
 					cs = append(cs, c)
 					c = new(Context)
@@ -385,6 +377,9 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 				c.before = lq.PopAll()
 				c.line = &Line{i, txt}
 				return
+			}
+			if lq.Len() == nlines {
+				lq.Pop()
 			}
 			lq.Push(&Line{i, txt})
 		}
@@ -406,7 +401,7 @@ func (w *Walker) readFile(file string, lq *LineQueue) ([]*Context, error) {
 		return nil, err
 	}
 
-	// append last one for nlines != 0
+	// append last one for nlines > 1
 	if c.line != nil {
 		c.after = lq.PopAll()
 		cs = append(cs, c)

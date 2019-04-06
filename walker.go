@@ -164,7 +164,7 @@ type Walker struct {
 	mu            sync.Mutex
 	wg            sync.WaitGroup
 	once          sync.Once
-	internalError *InternalError
+	internalError error
 
 	log *log.Logger
 }

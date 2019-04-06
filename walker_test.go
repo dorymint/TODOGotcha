@@ -14,7 +14,7 @@ import (
 func TestWalk(t *testing.T) {
 	dir := filepath.Join("testdata", "walker")
 	w := NewWalker()
-	resutQueue, _, err := w.Start("word", 0, dir)
+	resutQueue, wait, err := w.Start("word", 0, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,10 +23,12 @@ func TestWalk(t *testing.T) {
 	for f := range resutQueue {
 		out = append(out, f)
 	}
+	if err := wait(); err != nil {
+		t.Fatal(err)
+	}
 
 	buf := bytes.NewBufferString("")
-	err = FprintFiles(buf, out...)
-	if err != nil {
+	if err = FprintFiles(buf, out...); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("out:\n%v", buf)

@@ -70,7 +70,6 @@ var opt struct {
 	before uint
 	after  uint
 
-	sync    bool
 	verbose bool
 }
 
@@ -81,7 +80,6 @@ func init() {
 	flag.UintVar(&opt.context, "context", 0, "Append context")
 	flag.UintVar(&opt.context, "c", 0, "Alias of -context")
 
-	flag.BoolVar(&opt.sync, "sync", false, "Enable sync output")
 	flag.BoolVar(&opt.verbose, "verbose", false, "Verbose output")
 	flag.Usage = printUsage
 	flag.Parse()
@@ -120,25 +118,14 @@ func run() error {
 		return err
 	}
 
-	if opt.sync {
-		for f := range fch {
-			err := f.Fprint(os.Stdout)
-			if err != nil {
-				return err
-			}
-		}
-		return wait()
-	} else {
-		var fs []*File
-		for f := range fch {
-			fs = append(fs, f)
-		}
-		err := FprintFiles(os.Stdout, fs...)
+	for f := range fch {
+		err = f.Fprint(os.Stdout)
 		if err != nil {
 			return err
 		}
 		return wait()
 	}
+	return wait()
 }
 
 func main() {

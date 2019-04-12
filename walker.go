@@ -1,209 +1,103 @@
 package main
 
 import (
-	"bufio"
 	"errors"
-	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sync"
-	"unicode/utf8"
 )
 
-var ErrInvalidText = errors.New("unavailable encoding")
-
-type InternalError struct {
-	path string
-	e    error
-}
-
-func (ei *InternalError) Error() string {
-	return fmt.Sprintf("internal error:%v:%s", ei.e, ei.path)
-}
-
-type Line struct {
-	Num uint
-	Str string
-}
-
-type LineQueue struct {
-	ls []*Line
-}
-
-func (lq *LineQueue) Len() int     { return len(lq.ls) }
-func (lq *LineQueue) Push(l *Line) { lq.ls = append(lq.ls, l) }
-func (lq *LineQueue) Pop() *Line {
-	// believe to do not access out of bounds.
-	l := lq.ls[0]
-	lq.ls = lq.ls[1:]
-	return l
-}
-func (lq *LineQueue) PopAll() []*Line {
-	lines := make([]*Line, 0, len(lq.ls))
-	for lq.Len() != 0 {
-		lines = append(lines, lq.Pop())
-	}
-	return lines
-}
-func (lq *LineQueue) Reset() {
-	if lq.Len() != 0 {
-		lq.ls = lq.ls[:0]
-	}
-}
-
-// change to struct{ index int, pos int, lines []*Line }?
-type Context struct {
-	line   *Line
-	before []*Line
-	after  []*Line
-}
-
-func FprintContexts(writer io.Writer, prefix string, cs []*Context) error {
-	if cs == nil {
-		return nil
-	}
-	var err error
-	f := func(ls []*Line) {
-		for _, l := range ls {
-			_, err = fmt.Fprintf(writer, "%s%d-%s\n", prefix, l.Num, l.Str)
-		}
-	}
-	for _, c := range cs {
-		f(c.before)
-		if err != nil {
-			return err
-		}
-		_, err = fmt.Fprintf(writer, "%s%d:%s\n", prefix, c.line.Num, c.line.Str)
-		if err != nil {
-			return err
-		}
-		f(c.after)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type File struct {
-	path string
-	cs   []*Context
-}
-
-func (f *File) Fprint(writer io.Writer) error {
-	var err error
-	if len(f.cs) == 0 {
-		return nil
-	}
-	_, err = fmt.Fprintln(writer, f.path)
-	if err != nil {
-		return err
-	}
-	err = FprintContexts(writer, "", f.cs)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(writer)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (f *File) FprintVerbose(writer io.Writer) error {
-	var err error
-	if len(f.cs) == 0 {
-		return nil
-	}
-	err = FprintContexts(writer, f.path, f.cs)
-	if err != nil {
-		return err
-	}
-	_, err = fmt.Fprintln(writer)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func FprintFiles(writer io.Writer, fs ...*File) error {
-	var err error
-	for i := range fs {
-		err = fs[i].Fprint(writer)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func FprintFilesVerbose(writer io.Writer, fs ...*File) error {
-	var err error
-	for i := range fs {
-		err = fs[i].FprintVerbose(writer)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
+var ErrAlreadyStarted = errors.New("Walker: already started")
 
 type Walker struct {
 	fileQueue chan string
 	dirQueue  chan []string
 
-	regexp *regexp.Regexp
+	// store checked files path.
+	checked map[string]bool
 
-	nworker       int
-	checked       map[string]bool
-	mu            sync.Mutex
-	wg            sync.WaitGroup
-	once          sync.Once
-	internalError error
+	// for fileWalker.
+	re      *regexp.Regexp
+	nbefore int
+	nafter  int
 
-	log *log.Logger
+	mu sync.Mutex
+	wg sync.WaitGroup
+
+	// errorhandler is for dirWalker and fileWalker.
+	// if unexpected error coming then to panic is better.
+	errorHandler func(error)
+
+	isStarted bool
+	exitcode  int
 }
 
 func NewWalker() *Walker {
-	nworker := runtime.NumCPU() / 4
-	if nworker < 2 {
-		nworker = 2
-	}
 	return &Walker{
-		fileQueue:     make(chan string, 128),
-		dirQueue:      make(chan []string, nworker),
-		nworker:       nworker,
-		checked:       make(map[string]bool),
-		log:           log.New(ioutil.Discard, Name+":", 0),
-		internalError: nil,
+		checked:      make(map[string]bool),
+		errorHandler: DefaultErrorHandler,
 	}
 }
 
-func (w *Walker) SetLogOutput(writer io.Writer) { w.log.SetOutput(writer) }
-
-func (w *Walker) setInternalError(err error, path string) {
-	w.once.Do(func() { w.internalError = &InternalError{e: err, path: path} })
+var DefaultErrorHandler = func(err error) {
+	if os.IsNotExist(err) || os.IsPermission(err) {
+		return
+	}
+	if _, ok := err.(*ExpectedError); ok {
+		return
+	}
+	// unexpeted error
+	panic(err)
 }
 
-func (w *Walker) sendQueue(paths ...string) {
+func (w *Walker) SetErrorHandler(f func(error)) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.isStarted {
+		return ErrAlreadyStarted
+	}
+	w.errorHandler = f
+	return nil
+}
+
+func (w *Walker) SetRegexp(pat string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.isStarted {
+		return ErrAlreadyStarted
+	}
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		return err
+	}
+	w.re = re
+	return nil
+}
+
+func (w *Walker) SetContext(nbefore, nafter int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.isStarted {
+		return ErrAlreadyStarted
+	}
+	w.nbefore = nbefore
+	w.nafter = nafter
+	return nil
+}
+
+func (w *Walker) SendPath(paths ...string) error {
 	var dirs []string
-	for i := range paths {
-		abs, err := filepath.Abs(paths[i])
+	for _, p := range paths {
+		abs, err := filepath.Abs(p)
 		if err != nil {
-			w.setInternalError(err, abs)
-			w.log.Printf("[Err]:%v", err)
-			continue
+			return err
 		}
 		fi, err := os.Stat(abs)
 		if err != nil {
-			w.setInternalError(err, abs)
-			w.log.Printf("[Errr]:%v", err)
-			continue
+			return err
 		}
 		if fi.IsDir() {
 			dirs = append(dirs, abs)
@@ -212,199 +106,135 @@ func (w *Walker) sendQueue(paths ...string) {
 			w.fileQueue <- abs
 		}
 	}
-	w.wg.Add(1)
-	w.dirQueue <- dirs
+	if len(dirs) != 0 {
+		w.wg.Add(1)
+		w.dirQueue <- dirs
+	}
+	return nil
 }
 
-func (w *Walker) Start(pat string, nlines int, paths ...string) (<-chan *File, func() error, error) {
-	var re *regexp.Regexp
-	re, err := regexp.Compile(pat)
-	if err != nil {
-		return nil, nil, err
+func (w *Walker) Start() (resultReceiver <-chan *File, wait func()) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	nworker := runtime.NumCPU() / 4
+	if nworker < 2 {
+		nworker = 2
 	}
-	w.regexp = re
+	nfileQueue := 128
 
-	resultQueue := make(chan *File, cap(w.fileQueue))
 	done := make(chan struct{})
-	wait := func() error {
-		w.wg.Wait()
-		return w.internalError
+	rq := make(chan *File, nfileQueue)
+
+	errQueue := make(chan error, nfileQueue)
+	go w.handleError(errQueue, w.errorHandler)
+
+	w.dirQueue = make(chan []string, nworker)
+	w.fileQueue = make(chan string, nfileQueue)
+	for i := 0; i != nworker; i++ {
+		go w.dirWalker(done, errQueue)
+		go w.fileWalker(done, rq, errQueue)
 	}
 
-	for i := 0; i != w.nworker; i++ {
-		go w.dirWalker(done)
-		go w.fileWalker(done, resultQueue, nlines)
-	}
-	w.sendQueue(paths...)
-	go func() {
+	w.isStarted = true
+	return rq, func() {
 		w.wg.Wait()
+		close(errQueue)
 		close(done)
-		close(resultQueue)
-	}()
-	return resultQueue, wait, nil
+		close(rq)
+		w.mu.Lock()
+		w.isStarted = false
+		w.mu.Unlock()
+	}
 }
 
-// for goroutine
-// send tasks to {file,dir}Queue
-func (w *Walker) dirWalker(done <-chan struct{}) {
-	var nextDirs []string
+func (w *Walker) WaitExitCode() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.isStarted {
+		w.wg.Wait()
+		return w.exitcode
+	}
+	return w.exitcode
+}
+
+func (w *Walker) handleError(errQueue <-chan error, handler func(error)) {
+	for err := range errQueue {
+		if err != nil {
+			w.exitcode = 1
+			handler(err)
+		}
+	}
+}
+
+func (w *Walker) check(abs string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.checked[abs] {
+		return true
+	}
+	w.checked[abs] = true
+	return false
+}
+
+func (w *Walker) dirWalker(done <-chan struct{}, errQueue chan<- error) {
+	var dir string
 	var dirs []string
-	for ; true; w.wg.Done() {
+	var nextDirs []string
+	var fis []os.FileInfo
+	var err error
+	for ; ; w.wg.Done() {
 		select {
 		case <-done:
 			return
 		case dirs = <-w.dirQueue:
-			for i := range dirs {
-				fis, err := ioutil.ReadDir(dirs[i])
+		NextDirs:
+			for _, dir = range dirs {
+				if w.check(dir) {
+					continue
+				}
+				fis, err = ioutil.ReadDir(dir)
 				if err != nil {
-					w.setInternalError(err, dirs[i])
-					w.log.Printf("[Err]:%s:%v", dirs[i], err)
-					if os.IsNotExist(err) || os.IsPermission(err) {
-						continue
-					}
-					// unexpected error
-					panic(err)
+					errQueue <- err
+					continue
 				}
 				for _, fi := range fis {
-					if fi.Mode().IsRegular() {
+					if fi.IsDir() {
+						nextDirs = append(nextDirs, filepath.Join(dir, fi.Name()))
+					} else if fi.Mode().IsRegular() {
 						w.wg.Add(1)
-						w.fileQueue <- filepath.Join(dirs[i], fi.Name())
-					} else if fi.IsDir() {
-						nextDirs = append(nextDirs, filepath.Join(dirs[i], fi.Name()))
+						w.fileQueue <- filepath.Join(dir, fi.Name())
 					}
 				}
 			}
 			if len(nextDirs) != 0 {
-				w.wg.Add(1)
-				w.dirQueue <- nextDirs
+				dirs = append(dirs[:0], nextDirs...)
 				nextDirs = nextDirs[:0]
+				goto NextDirs
 			}
 		}
 	}
 }
 
-// for goroutine
-func (w *Walker) fileWalker(done <-chan struct{}, resultQueue chan<- *File, nlines int) {
-	lq := new(LineQueue)
+// do something for files.
+func (w *Walker) fileWalker(done <-chan struct{}, rq chan<- *File, errQueue chan<- error) {
 	var file string
+	fr := NewFileReader(w.re, w.nbefore, w.nafter)
+	var f *File
 	var err error
-	var cs []*Context
-	for ; true; w.wg.Done() {
+	for ; ; w.wg.Done() {
 		select {
 		case <-done:
 			return
 		case file = <-w.fileQueue:
-			w.mu.Lock()
-			if w.checked[file] {
-				w.mu.Unlock()
+			if w.check(file) {
 				continue
 			}
-			w.checked[file] = true
-			w.mu.Unlock()
-
-			cs, err = w.readFile(file, lq, nlines)
+			f, err = fr.ReadFile(file)
 			if err != nil {
-				w.setInternalError(err, file)
-				w.log.Printf("[Err]:%s:%v", file, err)
-				if os.IsNotExist(err) || os.IsPermission(err) {
-					continue
-				}
-				if err == bufio.ErrTooLong {
-					continue
-				}
-				if err == ErrInvalidText {
-					continue
-				}
-				// unexpected error
-				panic(err)
+				errQueue <- err
+				continue
 			}
-			w.log.Println(file)
-			if len(cs) != 0 {
-				resultQueue <- &File{
-					path: file,
-					cs:   cs,
-				}
-			}
+			rq <- f
 		}
 	}
-}
-
-// TODO? readFile(f *File, file string) error
-func (w *Walker) readFile(file string, lq *LineQueue, nlines int) ([]*Context, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	var cs []*Context
-	var c = new(Context)
-	var txt string
-	var i uint
-	var matched bool
-
-	var csAdd func()
-	if nlines < 1 {
-		csAdd = func() {
-			if matched {
-				cs = append(cs, &Context{
-					line:   &Line{i, txt},
-					before: []*Line{},
-					after:  []*Line{},
-				})
-			}
-		}
-	} else {
-		defer lq.Reset()
-		csAdd = func() {
-			if c.line != nil {
-				if matched {
-					c.after = lq.PopAll()
-					cs = append(cs, c)
-					c = &Context{
-						before: []*Line{},
-						line:   &Line{i, txt},
-						after:  []*Line{},
-					}
-					return
-				}
-				if lq.Len() == nlines {
-					c.after = lq.PopAll()
-					cs = append(cs, c)
-					c = new(Context)
-				}
-			} else if matched {
-				c.before = lq.PopAll()
-				c.line = &Line{i, txt}
-				return
-			}
-			if lq.Len() == nlines {
-				lq.Pop()
-			}
-			lq.Push(&Line{i, txt})
-		}
-	}
-
-	sc := bufio.NewScanner(f)
-	for i = uint(1); sc.Scan(); i++ {
-		if i == 0 {
-			return nil, errors.New("too many lines")
-		}
-		txt = sc.Text()
-		if !utf8.ValidString(txt) {
-			return nil, ErrInvalidText
-		}
-		matched = w.regexp.MatchString(txt)
-		csAdd()
-	}
-	if err = sc.Err(); err != nil {
-		return nil, err
-	}
-
-	// append last one for nlines > 1
-	if c.line != nil {
-		c.after = lq.PopAll()
-		cs = append(cs, c)
-	}
-	return cs, nil
 }

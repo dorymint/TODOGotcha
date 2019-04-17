@@ -1,5 +1,4 @@
-// rgr is cli tool for find target words in many files.
-// available in utf8.
+// rgr is cli tools for find target words in many files.
 package main
 
 import (
@@ -13,7 +12,7 @@ import (
 )
 
 const (
-	Version = "0.5.0"
+	Version = "0.5.1"
 	Name    = "rgr"
 )
 
@@ -21,25 +20,23 @@ var usageWriter io.Writer = os.Stderr
 
 const usage = `Usage:
   rgr [Options]
-  rgr -- [String]
-  rgr -- [String] [Path...]
+  rgr -- STRING
+  rgr -- STRING [PATH...]
 
 Options:
   -help              Print this help
   -version           Print version
+  -verbose           Verbose output
   -e, -regexp        Use regexp
   -C, -context [Num] With context
   -A, -after   [Num] Specify after lines
   -B, -before  [Num] Specify before lines
 
-  // TODO: impl
-  -verbose           Verbose output
-
 Examples:
   # search "func"
   $ rgr "func" main.go vendor/
 
-  # search from current directory
+  # search recursively from current directory
   $ rgr "func"
 
   # with context
@@ -57,27 +54,28 @@ var opt struct {
 	help    bool
 	version bool
 
-	regexp bool
+	verbose bool
+	regexp  bool
 
 	// TODO?
-	// Default:
 	// %f
-	// %l:%m ...
-	// Verbose:
+	// %l:%m
+	//
+	// change to
 	// %f:%l:%c:%m
+	//
 	//style string
 
 	context int
 	before  int
 	after   int
-
-	verbose bool
 }
 
 func init() {
 	flag.BoolVar(&opt.help, "help", false, "Print usage")
 	flag.BoolVar(&opt.version, "version", false, "Print version")
 
+	flag.BoolVar(&opt.verbose, "verbose", false, "Verbose output")
 	flag.BoolVar(&opt.regexp, "regexp", false, "Use regexp")
 	flag.BoolVar(&opt.regexp, "e", false, "Alias of -regexp")
 
@@ -89,8 +87,6 @@ func init() {
 
 	flag.IntVar(&opt.after, "after", 0, "Alias of -context")
 	flag.IntVar(&opt.after, "A", 0, "Alias of -after")
-
-	flag.BoolVar(&opt.verbose, "verbose", false, "Verbose output")
 }
 
 func run() (err error) {

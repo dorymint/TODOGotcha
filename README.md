@@ -2,8 +2,7 @@
 
 For learn.
 
-rgr is cli tool for find target words in many files.
-Available in utf8.
+rgr is cli tools for find target words in many files.
 
 ## Usage
 
@@ -14,7 +13,7 @@ rgr -help
 # search "func" in specific files and directories.
 rgr "func" file.txt dir/
 
-# search "func" from current directory
+# search recursively from current directory.
 rgr "func"
 ```
 
